@@ -1,0 +1,7 @@
+{
+  "name": "TradeManager",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}
