@@ -1,0 +1,48 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Add Holding</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">Cancel</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <form (ngSubmit)="save()">
+    <ion-item>
+      <ion-label position="floating">Name</ion-label>
+      <ion-input [(ngModel)]="holding.name" name="name" required></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-label>Status</ion-label>
+      <ion-select [(ngModel)]="holding.status" name="status" placeholder="Select Status">
+        <ion-select-option value="Active">Active</ion-select-option>
+        <ion-select-option value="Watchlist">Watchlist</ion-select-option>
+        <ion-select-option value="Closed">Closed</ion-select-option>
+      </ion-select>
+    </ion-item>
+
+    <ion-item>
+      <ion-label position="floating">Entry Price</ion-label>
+      <ion-input type="number" [(ngModel)]="holding.entryPrice" name="entryPrice"></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-label position="floating">Stoploss</ion-label>
+      <ion-input type="number" [(ngModel)]="holding.stoploss" name="stoploss"></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-label position="floating">Quantity</ion-label>
+      <ion-input type="number" [(ngModel)]="holding.quantity" name="quantity"></ion-input>
+    </ion-item>
+
+    <ion-item lines="none">
+      <ion-label>Image</ion-label>
+      <input type="file" (change)="onFileChange($event)" />
+    </ion-item>
+
+    <ion-button expand="block" type="submit" class="ion-margin-top">Save</ion-button>
+  </form>
+</ion-content>

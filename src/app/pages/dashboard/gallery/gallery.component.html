@@ -1,0 +1,29 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Gallery</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+   <div class="gallery-grid">
+    <div
+      class="image-item"
+      *ngFor="let img of images"
+      (click)="openImage(img)"
+      [style.background-image]="'url(' + img + ')'"
+    ></div>
+  </div>
+
+
+  <ion-progress-bar *ngIf="uploading" [value]="progress / 100" type="determinate" color="primary"></ion-progress-bar>
+
+  <input type="file" accept="image/*" hidden #fileInput (change)="onFileSelected($event)" />
+
+  <!-- Floating Add button at bottom right -->
+  <ion-fab  class="custom-fab">
+    <ion-fab-button (click)="fileInput.click()" color="primary">
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+
+</ion-content>

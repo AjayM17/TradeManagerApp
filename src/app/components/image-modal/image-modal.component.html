@@ -1,0 +1,19 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Image Preview</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="close()">
+        <ion-icon name="close" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-img [src]="imageUrl" class="full-image"></ion-img>
+
+  <ion-button expand="full" color="danger" (click)="deleteImage()">
+    <ion-icon name="trash" slot="start"></ion-icon>
+    Delete Image
+  </ion-button>
+</ion-content>
