@@ -1,0 +1,46 @@
+.trade-card {
+  border-top: 1px solid #ddd; // top separator
+  padding-top: 8px; // space above trade row
+  margin-top: 8px; // spacing from main card
+
+  .container {
+    display: flex;
+    justify-content: space-between;
+
+    .left, .right {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .field-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+
+      .title {
+        font-size: 13px;
+        color: #888;
+        margin-right: 6px;
+      }
+
+      .value {
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .age {
+        font-size: 13px;
+        color: #555;
+        margin-left: 6px;
+      }
+
+      .positive {
+        color: #28a745;
+      }
+
+      .negative {
+        color: #dc3545;
+      }
+    }
+  }
+}

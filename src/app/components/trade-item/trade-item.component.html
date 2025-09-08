@@ -1,0 +1,32 @@
+<div class="trade-card">
+  <div class="container">
+    <div class="left">
+      <div class="field-row">
+        <span class="title">Qty:</span>
+        <span class="value">{{ trade.quantity }}</span>
+      </div>
+      <div class="field-row">
+        <span class="title">Invested:</span>
+        <span class="value">₹{{ (trade.entryprice * trade.quantity) | roundOff }}</span>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="field-row">
+        <span
+          class="value"
+          [ngClass]="(trade.entryprice - trade.stoploss) >= 0 ? 'positive' : 'negative'"
+        >
+          ₹{{ ((trade.entryprice - trade.stoploss) * trade.quantity) | roundOff }}
+        </span>
+        <span class="age">
+          | Age {{ trade.trade_date | age }} d
+        </span>
+      </div>
+      <div class="field-row">
+        <span class="title">Price:</span>
+        <span class="value">₹{{ trade.entryprice | roundOff }}</span>
+      </div>
+    </div>
+  </div>
+</div>

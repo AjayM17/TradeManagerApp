@@ -8,41 +8,103 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <form (ngSubmit)="save()">
-    <ion-item>
-      <ion-label position="floating">Name</ion-label>
-      <ion-input [(ngModel)]="holding.name" name="name" required></ion-input>
+  <form [formGroup]="holdingForm" (ngSubmit)="save()">
+
+    <!-- Name -->
+    <ion-item lines="full">
+      <ion-label>Name</ion-label>
+      <ion-input formControlName="name"></ion-input>
     </ion-item>
 
-    <ion-item>
+    <!-- Trade Date -->
+    <ion-item lines="full">
+      <ion-label>Trade Date</ion-label>
+      <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <div>{{ holdingForm.value.trade_date | date: 'dd-MM-yyyy' }}</div>
+        <ion-icon name="calendar" size="small" (click)="showDatePicker = true"></ion-icon>
+      </div>
+    </ion-item>
+
+    <!-- Status -->
+    <ion-item lines="full">
       <ion-label>Status</ion-label>
-      <ion-select [(ngModel)]="holding.status" name="status" placeholder="Select Status">
+      <ion-select formControlName="status" placeholder="Select Status">
         <ion-select-option value="Active">Active</ion-select-option>
         <ion-select-option value="Watchlist">Watchlist</ion-select-option>
         <ion-select-option value="Closed">Closed</ion-select-option>
       </ion-select>
     </ion-item>
 
-    <ion-item>
-      <ion-label position="floating">Entry Price</ion-label>
-      <ion-input type="number" [(ngModel)]="holding.entryPrice" name="entryPrice"></ion-input>
+    <!-- Entry & Stoploss -->
+    <ion-item lines="full">
+      <ion-label>Entry Price</ion-label>
+      <ion-input type="number" formControlName="entryprice" (ionInput)="updateInvestmentAndRisk()"></ion-input>
     </ion-item>
 
-    <ion-item>
-      <ion-label position="floating">Stoploss</ion-label>
-      <ion-input type="number" [(ngModel)]="holding.stoploss" name="stoploss"></ion-input>
+    <ion-item lines="full">
+      <ion-label>Exit / Stoploss Price</ion-label>
+      <ion-input type="number" formControlName="stoploss" (ionInput)="updateInvestmentAndRisk()"></ion-input>
     </ion-item>
 
-    <ion-item>
-      <ion-label position="floating">Quantity</ion-label>
-      <ion-input type="number" [(ngModel)]="holding.quantity" name="quantity"></ion-input>
+    <!-- Quantity -->
+    <ion-item lines="full">
+      <ion-label>Quantity</ion-label>
+      <ion-input type="number" formControlName="quantity" (ionInput)="updateInvestmentAndRisk()"></ion-input>
     </ion-item>
 
+    <!-- Top Separator -->
+    <div class="top-separator"></div>
+
+    <!-- Calculated Fields -->
+    <ion-item lines="none">
+      <ion-label>Investment</ion-label>
+      <ion-text slot="end" class="value-text">₹{{ investment | number:'1.2-2' }}</ion-text>
+    </ion-item>
+
+    <ion-item lines="none">
+      <ion-label>Risk %</ion-label>
+      <ion-text slot="end" class="value-text">{{ riskPer | number:'1.2-2' }}%</ion-text>
+    </ion-item>
+
+    <ion-item lines="none">
+      <ion-label>Risk Value</ion-label>
+      <ion-text slot="end" class="value-text">{{ riskValue | number:'1.2-2' }}</ion-text>
+    </ion-item>
+
+    <ion-note color="danger" *ngIf="investment > maxInvestment" class="ion-padding-start">
+      Max allowed investment is {{ maxInvestment }}
+    </ion-note>
+
+    <ion-note color="danger" *ngIf="riskValue > maxRiskValue" class="ion-padding-start">
+      Max allowed risk value is {{ maxRiskValue }}
+    </ion-note>
+
+    <!-- Image -->
     <ion-item lines="none">
       <ion-label>Image</ion-label>
       <input type="file" (change)="onFileChange($event)" />
     </ion-item>
 
-    <ion-button expand="block" type="submit" class="ion-margin-top">Save</ion-button>
+    <!-- Save Button -->
+    <ion-button expand="block" type="submit" class="ion-margin-top" [disabled]="!canSave()">
+      Save
+    </ion-button>
+
   </form>
 </ion-content>
+
+<!-- Calendar Modal -->
+<ion-modal [isOpen]="showDatePicker" (didDismiss)="showDatePicker = false">
+  <ng-template>
+    <ion-content>
+      <ion-datetime #picker presentation="date" [value]="holdingForm.value.trade_date"
+        (ionChange)="tempDate = typeof $event.detail.value === 'string' ? $event.detail.value : ''">
+      </ion-datetime>
+
+      <ion-footer class="ion-padding">
+        <ion-button expand="block" fill="clear" (click)="cancelDate()">Cancel</ion-button>
+        <ion-button expand="block" (click)="confirmDate()">Done</ion-button>
+      </ion-footer>
+    </ion-content>
+  </ng-template>
+</ion-modal>

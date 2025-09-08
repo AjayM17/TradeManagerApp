@@ -10,19 +10,19 @@ export class SupabaseService {
   bucket = 'gallary';
 
   constructor() {
-     this.supabase = createClient(environment.supabaseUrl, environment.supabaseAnonKey,{
-         auth: {
-      persistSession: false,
-      autoRefreshToken: false
-    }
-     });
+    this.supabase = createClient(environment.supabaseUrl, environment.supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    });
   }
 
   async uploadImage(file: File, onProgress?: (percent: number) => void): Promise<string | null> {
-   const timestamp = Date.now();
-  const extension = file.name.split('.').pop() || 'png'; // fallback to .png
-  const fileName = `${timestamp}.${extension}`;
-  const filePath = `public/${fileName}`;
+    const timestamp = Date.now();
+    const extension = file.name.split('.').pop() || 'png'; // fallback to .png
+    const fileName = `${timestamp}.${extension}`;
+    const filePath = `public/${fileName}`;
 
     const { data, error } = await this.supabase.storage
       .from(this.bucket)
@@ -58,13 +58,27 @@ export class SupabaseService {
     );
   }
 
-async deleteImage(path: string): Promise<boolean> {
-  console.log('Deleting:', path); // Should be: public/filename.png
-  const { error } = await this.supabase.storage.from('gallary').remove([path]);
-  if (error) {
-    console.error('Delete failed:', error.message);
-    return false;
+  async deleteImage(path: string): Promise<boolean> {
+    console.log('Deleting:', path); // Should be: public/filename.png
+    const { error } = await this.supabase.storage.from('gallary').remove([path]);
+    if (error) {
+      console.error('Delete failed:', error.message);
+      return false;
+    }
+    return true;
   }
-  return true;
-}
+
+  async insertHolding(holding: any): Promise<void> {
+    const { error } = await this.supabase.from('holdings').insert([holding]);
+    if (error) {
+      throw error;
+    }
+  }
+
+    async getHoldings() {
+    const { data, error } = await this.supabase.from('holdings').select('*').order('trade_date', { ascending: false });
+    console.log(data)
+    if (error) throw error;
+    return data;
+  }
 }

@@ -1,14 +1,65 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>Holdings</ion-title>
+    <ion-title>My Holdings</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
-  <!-- Holding list or placeholder -->
-  <p>Your holdings will appear here.</p>
+  <ion-card class="holding-card" *ngFor="let holding of holdings; let i = index">
+    <!-- MAIN HEADER -->
+    <div class="details" (click)="toggleExpand(i)">
+      <div class="container">
+        <div class="left">
+          <p class="holding-name">{{ holding.name }}</p>
+          <div class="field-row">
+            <span class="title">Qty</span>
+            <span class="value">{{ holding.totalQty }}</span>
+          </div>
+          <div class="field-row">
+            <span class="title">Invested</span>
+          </div>
+          <div class="field-row">
+            <span class="value">₹{{ holding.totalInvested | roundOff }}</span>
+          </div>
+        </div>
 
-  <!-- Floating Action Button -->
+        <div class="right">
+          <div class="field-row">
+            <span
+              class="value"
+              [ngClass]="getHoldingPnL(holding) >= 0 ? 'positive' : 'negative'"
+            >
+              ₹{{ getHoldingPnL(holding) | roundOff }}
+              <span *ngIf="holding.totalInvested > 0">
+                ({{ ((getHoldingPnL(holding) / holding.totalInvested) * 100) | roundOff }}%)
+              </span>
+            </span>
+          </div>
+          <div class="field-row">
+            <span class="title">Avg</span>
+            <span class="value">₹{{ holding.avgPrice | roundOff }}</span>
+          </div>
+          <div class="field-row">
+            <span class="title">SL/Exit</span>
+            <span class="value">₹{{ holding.stoploss }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BREAKDOWNS -->
+    <ng-container *ngIf="expandedIndex === i">
+      <app-trade-item *ngFor="let trade of holding.trades" [trade]="trade"></app-trade-item>
+    </ng-container>
+
+    <!-- CENTERED BREAKDOWN LABEL -->
+    <div class="breakdown_label centered" (click)="toggleExpand(i)">
+      <ion-icon [name]="expandedIndex === i ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+      {{ expandedIndex === i ? 'Hide' : 'Show' }} Breakdowns
+    </div>
+  </ion-card>
+
+  <!-- FAB -->
   <ion-fab slot="fixed" vertical="bottom" horizontal="end">
     <ion-fab-button (click)="openAddHoldingModal()">
       <ion-icon name="add"></ion-icon>

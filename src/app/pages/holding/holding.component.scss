@@ -1,0 +1,74 @@
+.holding-card {
+  --background: #ffffff;
+  --border-radius: 12px;
+  margin-bottom: 12px;
+  padding: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+
+  .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+
+    .left,
+    .right {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .holding-name {
+      font-weight: 500;
+      font-size: 16px;
+      color: #222222;
+      margin-bottom: 6px;
+    }
+
+    .field-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px; // more space between rows
+      font-size: 14px;
+
+      .title {
+        font-weight: 500;
+        color: #888888; // lighter color for label
+        margin-right: 6px; // space between label and value
+      }
+
+      .value {
+        font-weight: 500;
+        color: #000000;
+      }
+
+      .value.positive {
+        color: #28a745; // green for P&L
+        font-weight: 500;
+      }
+
+      .value.negative {
+        color: #dc3545; // red for P&L
+        font-weight: 500;
+      }
+    }
+  }
+
+.breakdown_label {
+  display: flex;
+  align-items: center;
+  justify-content: center; // center horizontally
+  font-size: 14px;
+  color: #007bff;
+  margin-top: 8px;
+  cursor: pointer;
+
+  ion-icon {
+    margin-right: 4px;
+  }
+}
+
+}
+
+ion-fab-button {
+  --background: #007bff;
+  --box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
