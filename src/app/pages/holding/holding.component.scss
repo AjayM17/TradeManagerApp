@@ -1,3 +1,77 @@
+/* ================= HEADER TOOLBARS ================= */
+.toolbar-grey {
+  --background: #f2f2f2;
+  --color: #333333;
+
+  ion-title {
+    font-size: 20px;
+    font-weight: 500;
+  }
+}
+
+/* Summary Toolbar: Invested / Current / P&L */
+.summary-toolbar {
+  display: flex;
+  flex-direction: column;
+  padding: 0px 16px;
+  --min-height: auto;
+}
+
+.summary-left {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between; /* left and right ends */
+  align-items: center;
+  padding: 4px 0;
+
+  .label {
+    font-size: 15px;
+    font-weight: 500;
+    color: #555555;
+    text-align: left;
+  }
+
+  .value {
+    font-size: 15px;
+    font-weight: 500;
+    text-align: right;
+    color: #222222;
+  }
+}
+
+/* Bottom icon toolbar */
+.icon-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 12px;
+  --min-height: 40px;
+}
+
+.icon-toolbar ion-button {
+  --padding-start: 4px;
+  --padding-end: 4px;
+  --padding-top: 2px;
+  --padding-bottom: 2px;
+  height: 32px;
+}
+
+.icon-toolbar ion-icon {
+  font-size: 20px;
+}
+
+/* ================= ION CONTENT ================= */
+ion-content.content-adjust {
+  font-size: 13px;
+  font-weight: 500;
+  --padding-bottom: 50px; /* height of icon-toolbar + some space */
+}
+
+/* ================= HOLDING CARD ================= */
 .holding-card {
   --background: #ffffff;
   --border-radius: 12px;
@@ -14,60 +88,62 @@
     .right {
       display: flex;
       flex-direction: column;
+      gap: 4px; /* space between rows */
     }
 
     .holding-name {
       font-weight: 500;
-      font-size: 16px;
+      font-size: 13px;
       color: #222222;
       margin-bottom: 6px;
+      white-space: normal;
+      word-break: break-word;
     }
 
     .field-row {
       display: flex;
-      justify-content: space-between;
-      margin-bottom: 6px; // more space between rows
-      font-size: 14px;
+      align-items: center;
+      gap: 8px; /* space between label and value */
+      font-size: 13px;
+      font-weight: 500;
 
       .title {
-        font-weight: 500;
-        color: #888888; // lighter color for label
-        margin-right: 6px; // space between label and value
+        color: #888888;
+        white-space: nowrap;
       }
 
       .value {
-        font-weight: 500;
         color: #000000;
       }
 
       .value.positive {
-        color: #28a745; // green for P&L
-        font-weight: 500;
+        color: #28a745;
       }
 
       .value.negative {
-        color: #dc3545; // red for P&L
-        font-weight: 500;
+        color: #dc3545;
       }
     }
   }
 
-.breakdown_label {
-  display: flex;
-  align-items: center;
-  justify-content: center; // center horizontally
-  font-size: 14px;
-  color: #007bff;
-  margin-top: 8px;
-  cursor: pointer;
+  .breakdown_label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: #007bff;
+    margin-top: 8px;
+    cursor: pointer;
 
-  ion-icon {
-    margin-right: 4px;
+    ion-icon {
+      margin-right: 4px;
+      font-size: 13px;
+    }
   }
 }
 
-}
-
+/* ================= FAB BUTTON ================= */
 ion-fab-button {
   --background: #007bff;
   --box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);

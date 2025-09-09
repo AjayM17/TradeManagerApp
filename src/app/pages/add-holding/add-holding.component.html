@@ -1,6 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>Add Holding</ion-title>
+    <ion-title style="font-weight: 500;">{{ modalHeader }}</ion-title>
     <ion-buttons slot="end">
       <ion-button (click)="dismiss()">Cancel</ion-button>
     </ion-buttons>
@@ -11,100 +11,84 @@
   <form [formGroup]="holdingForm" (ngSubmit)="save()">
 
     <!-- Name -->
-    <ion-item lines="full">
-      <ion-label>Name</ion-label>
-      <ion-input formControlName="name"></ion-input>
-    </ion-item>
+    <div class="form-field">
+      <label class="form-label">Name</label>
+      <ion-input formControlName="name" [disabled]="isNameDisabled"></ion-input>
+    </div>
 
     <!-- Trade Date -->
-    <ion-item lines="full">
-      <ion-label>Trade Date</ion-label>
-      <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-        <div>{{ holdingForm.value.trade_date | date: 'dd-MM-yyyy' }}</div>
-        <ion-icon name="calendar" size="small" (click)="showDatePicker = true"></ion-icon>
+    <div class="form-field">
+      <label class="form-label">Trade Date</label>
+      <div class="date-picker" (click)="showDatePicker = true">
+        {{ holdingForm.value.trade_date || '' | date:'dd-MM-yyyy' }}
+        <ion-icon name="calendar"></ion-icon>
       </div>
-    </ion-item>
+    </div>
 
     <!-- Status -->
-    <ion-item lines="full">
-      <ion-label>Status</ion-label>
+    <div class="form-field">
+      <label class="form-label">Status</label>
       <ion-select formControlName="status" placeholder="Select Status">
-        <ion-select-option value="Active">Active</ion-select-option>
-        <ion-select-option value="Watchlist">Watchlist</ion-select-option>
-        <ion-select-option value="Closed">Closed</ion-select-option>
+        <ion-select-option value="active">Active</ion-select-option>
+        <ion-select-option value="watchlist">Watchlist</ion-select-option>
+        <ion-select-option value="completed">Completed</ion-select-option>
       </ion-select>
-    </ion-item>
+    </div>
 
-    <!-- Entry & Stoploss -->
-    <ion-item lines="full">
-      <ion-label>Entry Price</ion-label>
+    <!-- Entry -->
+    <div class="form-field">
+      <label class="form-label">Entry Price</label>
       <ion-input type="number" formControlName="entryprice" (ionInput)="updateInvestmentAndRisk()"></ion-input>
-    </ion-item>
+    </div>
 
-    <ion-item lines="full">
-      <ion-label>Exit / Stoploss Price</ion-label>
-      <ion-input type="number" formControlName="stoploss" (ionInput)="updateInvestmentAndRisk()"></ion-input>
-    </ion-item>
+    <!-- Stoploss -->
+    <div class="form-field">
+      <label class="form-label">SL</label>
+      <ion-input type="number" formControlName="stoploss" [disabled]="isStoplossDisabled" (ionInput)="updateInvestmentAndRisk()"></ion-input>
+    </div>
 
     <!-- Quantity -->
-    <ion-item lines="full">
-      <ion-label>Quantity</ion-label>
+    <div class="form-field">
+      <label class="form-label">Quantity</label>
       <ion-input type="number" formControlName="quantity" (ionInput)="updateInvestmentAndRisk()"></ion-input>
-    </ion-item>
+    </div>
 
-    <!-- Top Separator -->
-    <div class="top-separator"></div>
+    <!-- Calculated -->
+    <div class="form-field">
+      <label class="form-label">Investment</label>
+      <div class="value-text">₹{{ investment | number:'1.2-2' }}</div>
+    </div>
 
-    <!-- Calculated Fields -->
-    <ion-item lines="none">
-      <ion-label>Investment</ion-label>
-      <ion-text slot="end" class="value-text">₹{{ investment | number:'1.2-2' }}</ion-text>
-    </ion-item>
+    <div class="form-field">
+      <label class="form-label">Risk %</label>
+      <div class="value-text">{{ riskPer | number:'1.2-2' }}%</div>
+    </div>
 
-    <ion-item lines="none">
-      <ion-label>Risk %</ion-label>
-      <ion-text slot="end" class="value-text">{{ riskPer | number:'1.2-2' }}%</ion-text>
-    </ion-item>
-
-    <ion-item lines="none">
-      <ion-label>Risk Value</ion-label>
-      <ion-text slot="end" class="value-text">{{ riskValue | number:'1.2-2' }}</ion-text>
-    </ion-item>
-
-    <ion-note color="danger" *ngIf="investment > maxInvestment" class="ion-padding-start">
-      Max allowed investment is {{ maxInvestment }}
-    </ion-note>
-
-    <ion-note color="danger" *ngIf="riskValue > maxRiskValue" class="ion-padding-start">
-      Max allowed risk value is {{ maxRiskValue }}
-    </ion-note>
+    <div class="form-field">
+      <label class="form-label">Risk Value</label>
+      <div class="value-text">{{ riskValue | number:'1.2-2' }}</div>
+    </div>
 
     <!-- Image -->
-    <ion-item lines="none">
-      <ion-label>Image</ion-label>
+    <div class="form-field">
+      <label class="form-label">Image</label>
       <input type="file" (change)="onFileChange($event)" />
-    </ion-item>
+    </div>
 
-    <!-- Save Button -->
-    <ion-button expand="block" type="submit" class="ion-margin-top" [disabled]="!canSave()">
-      Save
-    </ion-button>
-
+    <!-- Save -->
+    <ion-button expand="block" type="submit" [disabled]="!canSave()">Save</ion-button>
   </form>
+
+  <!-- Date Picker -->
+  <ion-modal [isOpen]="showDatePicker" (didDismiss)="cancelDate()">
+    <ng-template>
+      <ion-content>
+        <ion-datetime [value]="holdingForm.value.trade_date || ''" (ionChange)="onDateChange($event)"></ion-datetime>
+        <ion-footer class="ion-padding">
+          <ion-button expand="block" fill="clear" (click)="cancelDate()">Cancel</ion-button>
+          <ion-button expand="block" (click)="confirmDate()">Done</ion-button>
+        </ion-footer>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
 </ion-content>
-
-<!-- Calendar Modal -->
-<ion-modal [isOpen]="showDatePicker" (didDismiss)="showDatePicker = false">
-  <ng-template>
-    <ion-content>
-      <ion-datetime #picker presentation="date" [value]="holdingForm.value.trade_date"
-        (ionChange)="tempDate = typeof $event.detail.value === 'string' ? $event.detail.value : ''">
-      </ion-datetime>
-
-      <ion-footer class="ion-padding">
-        <ion-button expand="block" fill="clear" (click)="cancelDate()">Cancel</ion-button>
-        <ion-button expand="block" (click)="confirmDate()">Done</ion-button>
-      </ion-footer>
-    </ion-content>
-  </ng-template>
-</ion-modal>

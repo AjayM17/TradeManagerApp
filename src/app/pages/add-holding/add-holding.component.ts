@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import {
   IonInput,
   IonLabel,
@@ -16,16 +16,15 @@ import {
   IonModal,
   IonFooter,
   LoadingController,
-  ToastController,
   ModalController,
   IonText,
   IonNote
 } from '@ionic/angular/standalone';
-
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService } from 'src/app/services/supabase.service';
+import { UiHelperService } from 'src/app/services/ui-helper.service';
 
 @Component({
   selector: 'app-add-holding',
@@ -53,50 +52,88 @@ import { SupabaseService } from 'src/app/services/supabase.service';
     IonNote
   ],
   templateUrl: './add-holding.component.html',
+  styleUrls: ['./add-holding.component.scss']
 })
-export class AddHoldingComponent {
+export class AddHoldingComponent implements OnInit {
+  @Input() holding: any;
+  @Input() trade: any;
+
   holdingForm: FormGroup;
   selectedFile: File | null = null;
   showDatePicker = false;
   tempDate: string = '';
 
-  // Display-only calculated fields
-  investment: number = 0;
-  riskPer: number = 0;
-  riskValue: number = 0;
+  investment = 0;
+  riskPer = 0;
+  riskValue = 0;
 
-  // Limits (future: load from Settings)
   maxInvestment = 50000;
   maxRiskValue = 3000;
+
+  modalHeader = 'Add Holding';
 
   constructor(
     private fb: FormBuilder,
     private modalCtrl: ModalController,
-    private toastCtrl: ToastController,
     private loadingCtrl: LoadingController,
-    private supabaseService: SupabaseService
+    private supabaseService: SupabaseService,
+    private uiHelper: UiHelperService
   ) {
     this.holdingForm = this.fb.group({
       name: ['', Validators.required],
       status: ['', Validators.required],
-      trade_date: ['', Validators.required],
-      entryprice: [null],
-      stoploss: [null],
-      quantity: [null],
+      trade_date: ['', Validators.required], // string safe
+      entryprice: [null, Validators.required],
+      stoploss: [null, Validators.required],
+      quantity: [null, Validators.required],
     });
   }
 
-  onFileChange(event: any) {
-    const file = event.target.files[0];
-    if (file) {
-      this.selectedFile = file;
+  ngOnInit() {
+    if (this.trade) {
+      this.modalHeader = 'Edit Trade';
+      this.holdingForm.patchValue({
+        name: this.trade.name || '',
+        status: this.trade.status || '',
+        trade_date: this.trade.trade_date || '',
+        entryprice: this.trade.entryprice || null,
+        stoploss: this.trade.stoploss || null,
+        quantity: this.trade.quantity || null,
+      });
+
+      this.holdingForm.get('name')?.disable();
+      this.holdingForm.get('stoploss')?.disable();
+
+      this.updateInvestmentAndRisk();
+    } else if (this.holding) {
+      this.modalHeader = 'Add Trade';
+      this.holdingForm.patchValue({
+        name: this.holding.name || '',
+        stoploss: this.holding.stoploss || null,
+      });
+
+      this.holdingForm.get('name')?.disable();
+      this.holdingForm.get('stoploss')?.disable();
     }
   }
 
+  get isNameDisabled(): boolean {
+    return !!this.holdingForm.get('name')?.disabled;
+  }
+
+  get isStoplossDisabled(): boolean {
+    return !!this.holdingForm.get('stoploss')?.disabled;
+  }
+
+  onFileChange(event: any) {
+    const file = event.target.files?.[0];
+    if (file) this.selectedFile = file;
+  }
+
   updateInvestmentAndRisk() {
-    const entryPrice = +this.holdingForm.get('entryprice')?.value || 0;
-    const stoploss = +this.holdingForm.get('stoploss')?.value || 0;
-    const quantity = +this.holdingForm.get('quantity')?.value || 0;
+    const entryPrice = +(this.holdingForm.get('entryprice')?.value || 0);
+    const stoploss = +(this.holdingForm.get('stoploss')?.value || 0);
+    const quantity = +(this.holdingForm.get('quantity')?.value || 0);
 
     this.investment = entryPrice * quantity;
     this.riskValue = (entryPrice - stoploss) * quantity;
@@ -104,24 +141,22 @@ export class AddHoldingComponent {
   }
 
   async save() {
-    if (this.holdingForm.invalid) return;
+    if (!this.holdingForm.valid) return;
 
-    // extra safety (button already disabled if invalid)
     if (this.investment > this.maxInvestment) {
-      this.presentToast(`Investment exceeds limit of ${this.maxInvestment}`, 'danger');
+      await this.uiHelper.showToast(`Investment exceeds limit of ${this.maxInvestment}`, 3000, 'top', 'danger');
       return;
     }
     if (this.riskValue > this.maxRiskValue) {
-      this.presentToast(`Risk Value exceeds limit of ${this.maxRiskValue}`, 'danger');
+      await this.uiHelper.showToast(`Risk Value exceeds limit of ${this.maxRiskValue}`, 3000, 'top', 'danger');
       return;
     }
 
-    const formData = this.holdingForm.value;
-    const loading = await this.loadingCtrl.create({
-      message: 'Saving holding...',
-      spinner: 'crescent',
-    });
+    const formData = this.holdingForm.getRawValue();
+    if (this.holding?.id) formData.holdingId = this.holding.id;
+    if (this.trade?.id) formData.id = this.trade.id;
 
+    const loading = await this.loadingCtrl.create({ message: 'Saving holding...', spinner: 'crescent' });
     await loading.present();
 
     try {
@@ -130,28 +165,24 @@ export class AddHoldingComponent {
         formData.image = imageUrl;
       }
 
-      await this.supabaseService.insertHolding(formData);
+      if (this.trade?.id) {
+        await this.supabaseService.updateHolding(formData);
+      } else {
+        await this.supabaseService.insertHolding(formData);
+      }
+
       await loading.dismiss();
-      this.presentToast('Holding saved successfully');
       this.dismiss(true);
     } catch (error) {
-      console.error('Error saving holding:', error);
-      this.presentToast('Error saving holding', 'danger');
+      console.error(error);
       await loading.dismiss();
     }
   }
 
   dismiss(success: boolean = false) {
-    this.modalCtrl.dismiss(success);
-  }
-
-  async presentToast(message: string, color: string = 'success') {
-    const toast = await this.toastCtrl.create({
-      message,
-      duration: 2000,
-      color,
-    });
-    toast.present();
+     this.modalCtrl.dismiss({
+    success: success
+  });
   }
 
   cancelDate() {
@@ -160,18 +191,18 @@ export class AddHoldingComponent {
   }
 
   confirmDate() {
-    if (this.tempDate) {
-      this.holdingForm.get('trade_date')?.setValue(this.tempDate);
-    }
+    if (this.tempDate) this.holdingForm.get('trade_date')?.setValue(this.tempDate);
     this.showDatePicker = false;
   }
 
-  // Helper: check if save allowed
   canSave(): boolean {
-    return (
-      this.holdingForm.valid &&
-      this.investment <= this.maxInvestment &&
-      this.riskValue <= this.maxRiskValue
-    );
+    return this.holdingForm.valid && this.investment <= this.maxInvestment && this.riskValue <= this.maxRiskValue;
   }
+
+  onDateChange(event: any) {
+  const value = event?.detail?.value;
+  if (value && typeof value === 'string') {
+    this.tempDate = value;
+  }
+}
 }

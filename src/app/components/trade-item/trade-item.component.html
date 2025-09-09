@@ -1,5 +1,9 @@
 <div class="trade-card">
+  <!-- Initial badge -->
+  <div *ngIf="trade.isInitial" class="initial-badge">Initial</div>
+
   <div class="container">
+    <!-- LEFT SIDE -->
     <div class="left">
       <div class="field-row">
         <span class="title">Qty:</span>
@@ -7,10 +11,13 @@
       </div>
       <div class="field-row">
         <span class="title">Invested:</span>
-        <span class="value">₹{{ (trade.entryprice * trade.quantity) | roundOff }}</span>
+        <span class="value">
+          ₹{{ (trade.entryprice * trade.quantity) | roundOff }}
+        </span>
       </div>
     </div>
 
+    <!-- RIGHT SIDE -->
     <div class="right">
       <div class="field-row">
         <span
@@ -19,9 +26,7 @@
         >
           ₹{{ ((trade.entryprice - trade.stoploss) * trade.quantity) | roundOff }}
         </span>
-        <span class="age">
-          | Age {{ trade.trade_date | age }} d
-        </span>
+        <span class="age">| Age {{ trade.trade_date | age }} d</span>
       </div>
       <div class="field-row">
         <span class="title">Price:</span>

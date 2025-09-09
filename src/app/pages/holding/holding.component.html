@@ -1,13 +1,47 @@
 <ion-header>
-  <ion-toolbar>
-    <ion-title>My Holdings</ion-title>
+
+  <!-- Top Toolbar: Title -->
+  <ion-toolbar class="toolbar-grey">
+    <ion-title>{{ selectedStatusType?.text || 'Holdings' }}</ion-title>
   </ion-toolbar>
+
+  <!-- Summary Toolbar: Invested / Current / P&L -->
+  <ion-toolbar class="summary-toolbar toolbar-grey">
+    <div class="summary-left">
+      <div class="summary-row">
+        <span class="label">Invested</span>
+        <span class="value">{{ investment | roundOff }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">Current</span>
+        <span class="value">{{ investment + pnl_val | roundOff }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">P&L</span>
+        <span class="value" [ngStyle]="{ color: pnl_val > 0 ? '#28ba62' : '#eb445a' }">
+          {{ pnl_val | roundOff }} ({{ getPnlPer() }})
+        </span>
+      </div>
+    </div>
+  </ion-toolbar>
+
+  <!-- Bottom Toolbar: Icons -->
+  <ion-toolbar class="icon-toolbar toolbar-grey">
+    <ion-buttons slot="end">
+      <ion-button (click)="openFilter()">
+        <ion-icon name="filter-outline"></ion-icon>
+      </ion-button>
+      <ion-button (click)="openSort()">
+        <ion-icon name="swap-vertical-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+
 </ion-header>
 
-<ion-content class="ion-padding">
+<ion-content fullscreen class="content-adjust">
   <ion-card class="holding-card" *ngFor="let holding of holdings; let i = index">
-    <!-- MAIN HEADER -->
-    <div class="details" (click)="toggleExpand(i)">
+    <div class="details">
       <div class="container">
         <div class="left">
           <p class="holding-name">{{ holding.name }}</p>
@@ -17,18 +51,14 @@
           </div>
           <div class="field-row">
             <span class="title">Invested</span>
-          </div>
-          <div class="field-row">
             <span class="value">₹{{ holding.totalInvested | roundOff }}</span>
           </div>
         </div>
 
         <div class="right">
           <div class="field-row">
-            <span
-              class="value"
-              [ngClass]="getHoldingPnL(holding) >= 0 ? 'positive' : 'negative'"
-            >
+            <span class="title">P&L</span>
+            <span class="value" [ngClass]="getHoldingPnL(holding) >= 0 ? 'positive' : 'negative'">
               ₹{{ getHoldingPnL(holding) | roundOff }}
               <span *ngIf="holding.totalInvested > 0">
                 ({{ ((getHoldingPnL(holding) / holding.totalInvested) * 100) | roundOff }}%)
@@ -49,11 +79,13 @@
 
     <!-- BREAKDOWNS -->
     <ng-container *ngIf="expandedIndex === i">
-      <app-trade-item *ngFor="let trade of holding.trades" [trade]="trade"></app-trade-item>
+      <app-trade-item *ngFor="let trade of getSortedTrades(holding)" [trade]="trade"
+        (click)="openTradeActions(trade, holding)">
+      </app-trade-item>
     </ng-container>
 
     <!-- CENTERED BREAKDOWN LABEL -->
-    <div class="breakdown_label centered" (click)="toggleExpand(i)">
+    <div class="breakdown_label" (click)="toggleExpand(i)">
       <ion-icon [name]="expandedIndex === i ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
       {{ expandedIndex === i ? 'Hide' : 'Show' }} Breakdowns
     </div>

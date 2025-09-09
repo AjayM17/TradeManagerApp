@@ -75,10 +75,29 @@ export class SupabaseService {
     }
   }
 
-    async getHoldings() {
+  async updateHolding(holding: any): Promise<void> {
+    if (!holding.id) throw new Error('Holding ID is required for update');
+
+    const { error } = await this.supabase
+      .from('holdings')
+      .update({ ...holding })
+      .eq('id', holding.id);
+
+    if (error) throw error;
+  }
+
+  async getHoldings() {
     const { data, error } = await this.supabase.from('holdings').select('*').order('trade_date', { ascending: false });
     console.log(data)
     if (error) throw error;
     return data;
   }
+
+  async deleteHolding(id: string): Promise<void> {
+  if (!id) throw new Error('Trade/Holding ID is required for deletion');
+
+  const { error } = await this.supabase.from('holdings').delete().eq('id', id);
+
+  if (error) throw error;
+}
 }
