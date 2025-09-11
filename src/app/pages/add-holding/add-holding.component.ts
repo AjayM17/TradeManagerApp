@@ -12,8 +12,6 @@ import {
   IonSelect,
   IonSelectOption,
   IonIcon,
-  IonDatetime,
-  IonModal,
   IonFooter,
   LoadingController,
   ModalController,
@@ -21,7 +19,7 @@ import {
   IonNote
 } from '@ionic/angular/standalone';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService } from 'src/app/services/supabase.service';
 import { UiHelperService } from 'src/app/services/ui-helper.service';
@@ -45,8 +43,6 @@ import { UiHelperService } from 'src/app/services/ui-helper.service';
     IonSelect,
     IonSelectOption,
     IonIcon,
-    IonDatetime,
-    IonModal,
     IonFooter,
     IonText,
     IonNote
@@ -60,8 +56,6 @@ export class AddHoldingComponent implements OnInit {
 
   holdingForm: FormGroup;
   selectedFile: File | null = null;
-  showDatePicker = false;
-  tempDate: string = '';
 
   investment = 0;
   riskPer = 0;
@@ -80,11 +74,11 @@ export class AddHoldingComponent implements OnInit {
     private uiHelper: UiHelperService
   ) {
     this.holdingForm = this.fb.group({
-      name: ['', Validators.required],
-      status: ['', Validators.required],
-      trade_date: ['', Validators.required], // string safe
+      name: new FormControl({ value: '', disabled: false }, Validators.required),
+      status: ['active', Validators.required],
+      trade_date: ['', Validators.required],
       entryprice: [null, Validators.required],
-      stoploss: [null, Validators.required],
+      stoploss: new FormControl({ value: null, disabled: false }, Validators.required),
       quantity: [null, Validators.required],
     });
   }
@@ -92,37 +86,33 @@ export class AddHoldingComponent implements OnInit {
   ngOnInit() {
     if (this.trade) {
       this.modalHeader = 'Edit Trade';
-      this.holdingForm.patchValue({
-        name: this.trade.name || '',
-        status: this.trade.status || '',
-        trade_date: this.trade.trade_date || '',
-        entryprice: this.trade.entryprice || null,
-        stoploss: this.trade.stoploss || null,
-        quantity: this.trade.quantity || null,
-      });
-
-      this.holdingForm.get('name')?.disable();
-      this.holdingForm.get('stoploss')?.disable();
-
-      this.updateInvestmentAndRisk();
+      this.patchForm(this.trade);
     } else if (this.holding) {
       this.modalHeader = 'Add Trade';
-      this.holdingForm.patchValue({
-        name: this.holding.name || '',
-        stoploss: this.holding.stoploss || null,
-      });
-
-      this.holdingForm.get('name')?.disable();
-      this.holdingForm.get('stoploss')?.disable();
+      this.patchForm(this.holding);
     }
   }
 
-  get isNameDisabled(): boolean {
-    return !!this.holdingForm.get('name')?.disabled;
-  }
+  private patchForm(data: any) {
+    const nameControl = this.holdingForm.get('name');
+    const stoplossControl = this.holdingForm.get('stoploss');
 
-  get isStoplossDisabled(): boolean {
-    return !!this.holdingForm.get('stoploss')?.disabled;
+    nameControl?.enable({ emitEvent: false });
+    stoplossControl?.enable({ emitEvent: false });
+
+    this.holdingForm.patchValue({
+      name: data.name || '',
+      status: data.status || '',
+      trade_date: data.trade_date || '',
+      entryprice: data.entryprice || null,
+      stoploss: data.stoploss || null,
+      quantity: data.quantity || null,
+    }, { emitEvent: false });
+
+    nameControl?.disable({ emitEvent: false });
+    stoplossControl?.disable({ emitEvent: false });
+
+    this.updateInvestmentAndRisk();
   }
 
   onFileChange(event: any) {
@@ -180,29 +170,10 @@ export class AddHoldingComponent implements OnInit {
   }
 
   dismiss(success: boolean = false) {
-     this.modalCtrl.dismiss({
-    success: success
-  });
-  }
-
-  cancelDate() {
-    this.tempDate = '';
-    this.showDatePicker = false;
-  }
-
-  confirmDate() {
-    if (this.tempDate) this.holdingForm.get('trade_date')?.setValue(this.tempDate);
-    this.showDatePicker = false;
+    this.modalCtrl.dismiss({ success });
   }
 
   canSave(): boolean {
     return this.holdingForm.valid && this.investment <= this.maxInvestment && this.riskValue <= this.maxRiskValue;
   }
-
-  onDateChange(event: any) {
-  const value = event?.detail?.value;
-  if (value && typeof value === 'string') {
-    this.tempDate = value;
-  }
-}
 }

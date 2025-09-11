@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonContent,
@@ -13,8 +13,9 @@ import {
   ModalController,
   LoadingController,
   ActionSheetController,
-  AlertController,
-  IonButton
+  IonButton,
+  IonSelect,
+  IonSelectOption
 } from '@ionic/angular/standalone';
 import { SupabaseService } from '../../services/supabase.service';
 import { TradeItemComponent } from '../../components/trade-item/trade-item.component';
@@ -22,6 +23,9 @@ import { RoundOffPipe } from 'src/app/pipes/round-off.pipe';
 import { AddHoldingComponent } from '../add-holding/add-holding.component';
 import { transformHoldings, TradeEntry } from 'src/app/utils/holdings.helper';
 import { UiHelperService } from 'src/app/services/ui-helper.service';
+
+type SortField = 'name' | 'pnl' | 'investment';
+type SortOrder = 'asc' | 'desc';
 
 @Component({
   selector: 'app-holding',
@@ -41,10 +45,14 @@ import { UiHelperService } from 'src/app/services/ui-helper.service';
     TradeItemComponent,
     RoundOffPipe,
     IonButtons,
-    IonButton
+    IonButton,
+    IonSelect,
+    IonSelectOption
   ]
 })
 export class HoldingComponent {
+  @ViewChild('sortSelect') sortSelect!: IonSelect; // reference to hidden select
+
   private modalCtrl = inject(ModalController);
   private supabase = inject(SupabaseService);
   private loadingCtrl = inject(LoadingController);
@@ -53,190 +61,164 @@ export class HoldingComponent {
   private cdr = inject(ChangeDetectorRef);
 
   holdings: any[] = [];
+  sortedHoldings: any[] = [];
   expandedIndex: number | null = null;
-
   investment = 0;
   pnl_val = 0;
   selectedStatusType: any;
+  sortedTradesMap: Map<number, any[]> = new Map();
+
+  sortField: SortField = 'name';
+  sortOrder: SortOrder = 'asc';
 
   async ngOnInit() {
-    this.refreshHoldings()
+    await this.refreshHoldings();
   }
 
   async refreshHoldings() {
-    await this.loadHoldings();
-    this.calculateSummary();
-    this.cdr.detectChanges()
-  }
-
-
-  calculateSummary() {
-    this.investment = this.holdings.reduce((sum, h) => sum + (h.totalInvested ?? 0), 0);
-
-    const currentValue = this.holdings.reduce(
-      (sum, h) => sum + ((h.totalQty ?? 0) * (h.stoploss ?? 0)),
-      0
-    );
-
-    this.pnl_val = currentValue - this.investment;
-  }
-
-  getPnlPer(): string {
-    return this.investment ? ((this.pnl_val / this.investment) * 100).toFixed(2) + '%' : '0%';
-  }
-
-  openFilter() {
-    console.log('Filter clicked');
-    // implement filter logic
-  }
-
-  openSort() {
-    console.log('Sort clicked');
-    // implement sort logic
-  }
-
-  async loadHoldings() {
     const loading = await this.loadingCtrl.create({ message: 'Loading Holdings...' });
     await loading.present();
 
     try {
       const data = await this.supabase.getHoldings();
       this.holdings = data ? transformHoldings(data as TradeEntry[]) : [];
-      console.log('Holdings:', this.holdings);
     } catch (err) {
       console.error('Error fetching holdings', err);
       this.holdings = [];
     } finally {
       await loading.dismiss();
     }
+
+    setTimeout(() => {
+      this.precomputeTrades();
+      this.calculateSummary();
+      this.applySorting();
+      this.cdr.detectChanges();
+    });
+  }
+
+  precomputeTrades() {
+    this.sortedTradesMap.clear();
+    this.holdings.forEach(h => {
+      if (h.trades) {
+        const sorted = [...h.trades]
+          .sort((a, b) => new Date(a.trade_date).getTime() - new Date(b.trade_date).getTime())
+          .map((trade, index) => ({ ...trade, isInitial: index === 0 }));
+        this.sortedTradesMap.set(h.id, sorted);
+      } else {
+        this.sortedTradesMap.set(h.id, []);
+      }
+    });
+  }
+
+  calculateSummary() {
+    let investment = 0;
+    let currentValue = 0;
+    for (const h of this.holdings) {
+      investment += h.totalInvested ?? 0;
+      currentValue += (h.totalQty ?? 0) * (h.stoploss ?? 0);
+    }
+    this.investment = investment;
+    this.pnl_val = currentValue - investment;
+  }
+
+  applySorting() {
+    this.sortedHoldings = [...this.holdings].sort((a, b) => {
+      let valA: any, valB: any;
+      switch (this.sortField) {
+        case 'name':
+          valA = a.name.toLowerCase();
+          valB = b.name.toLowerCase();
+          break;
+        case 'pnl':
+          valA = this.getHoldingPnL(a);
+          valB = this.getHoldingPnL(b);
+          break;
+        case 'investment':
+          valA = a.totalInvested ?? 0;
+          valB = b.totalInvested ?? 0;
+          break;
+      }
+      if (valA < valB) return this.sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return this.sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  setSort(field: SortField, order: SortOrder) {
+    this.sortField = field;
+    this.sortOrder = order;
+    this.applySorting();
+  }
+
+  openSortPopover(select: IonSelect) {
+    select.open();
   }
 
   toggleExpand(index: number) {
     this.expandedIndex = this.expandedIndex === index ? null : index;
   }
 
-  openAddHoldingModal() {
-    this.modalCtrl.create({ component: AddHoldingComponent }).then(modal => {
-      modal.onDidDismiss().then((result) => {
-        // Only reload if user actually saved
-        console.log(result)
-        if (result?.data === true) {
-          this.refreshHoldings()
-        }
-      });
-      modal.present();
-    });
-  }
-
   getHoldingPnL(holding: any): number {
-    const pnl =
-      holding.trades?.reduce(
-        (sum: number, t: any) => sum + (t.entryprice - t.stoploss) * t.quantity,
-        0
-      ) || 0;
+    let pnl = 0;
+    if (holding.trades) {
+      for (const t of holding.trades) {
+        pnl += (t.entryprice - t.stoploss) * t.quantity;
+      }
+    }
     return pnl;
   }
 
-  getSortedTrades(holding: any) {
-    if (!holding.trades) return [];
-
-    // Sort oldest first
-    const sorted = [...holding.trades].sort(
-      (a, b) => new Date(a.trade_date).getTime() - new Date(b.trade_date).getTime()
-    );
-
-    // Mark the first trade as initial
-    return sorted.map((trade, index) => ({
-      ...trade,
-      isInitial: index === 0
-    }));
+  getPnlPer(): string {
+    return this.investment ? ((this.pnl_val / this.investment) * 100).toFixed(2) + '%' : '0%';
   }
 
-
+  async openAddHoldingModal() {
+    const modal = await this.modalCtrl.create({ component: AddHoldingComponent });
+    modal.onDidDismiss().then(result => { if (result?.data?.success) this.refreshHoldings(); });
+    await modal.present();
+  }
 
   async openTradeActions(trade: any, holding: any) {
     const actionSheet = await this.actionSheetCtrl.create({
       header: `${holding.name} - Trade`,
       buttons: [
-        {
-          text: 'Add More',
-          icon: 'add-circle-outline',
-          handler: () => {
-            this.modalCtrl.create({
-              component: AddHoldingComponent,
-              componentProps: { holding }  // ✅ pass whole holding
-            }).then(modal => {
-              modal.onDidDismiss().then((result) => {
-                // Only reload if user actually saved
-                console.log(result)
-                if (result?.data === true) {
-                  this.refreshHoldings()
-                }
-              });
-              modal.present();
-            });
-          }
-        },
-        {
-          text: 'Edit',
-          icon: 'create-outline',
-          handler: () => {
-            this.modalCtrl.create({
-              component: AddHoldingComponent,
-              componentProps: {
-                holding,    // pass the holding
-                trade       // pass the specific trade to edit
-              }
-            }).then(modal => {
-              modal.onDidDismiss().then((result) => {
-                // Only reload if user actually saved
-                console.log(result)
-                if (result?.data === true) {
-                  this.refreshHoldings()
-                }
-              });
-              modal.present();
-            });
-          }
-        },
-        {
-          text: 'Delete',
-          role: 'destructive',
-          icon: 'trash-outline',
-          handler: () => {
-            // Wrap in async IIFE
-            (async () => {
-              const confirmed = await this.uiHelper.showConfirm('Confirm', 'Are you sure want to delete trade?');
-              if (!confirmed) return;
-
-              try {
-                await this.supabase.deleteHolding(trade.id);
-                await this.uiHelper.showToast('Trade deleted successfully', 3000, 'top', 'success');
-                this.refreshHoldings()
-
-              } catch (error) {
-                console.error('Error deleting trade:', error);
-                await this.uiHelper.showToast('Failed to delete trade', 3000, 'top', 'danger');
-              }
-            })();
-          }
-        },
-        {
-          text: 'Mark As Complete',
-          icon: 'checkmark-done-outline',
-          handler: () => {
-            console.log('Mark complete clicked', trade, holding);
-          }
-        },
-        {
-          text: 'Cancel',
-          role: 'cancel',
-          icon: 'close'
-        }
+        { text: 'Add More', icon: 'add-circle-outline', handler: () => this.openAddTradeModal(holding) },
+        { text: 'Edit', icon: 'create-outline', handler: () => this.openEditTradeModal(holding, trade) },
+        { text: 'Delete', role: 'destructive', icon: 'trash-outline', handler: () => this.deleteTrade(trade) },
+        { text: 'Mark As Complete', icon: 'checkmark-done-outline', handler: () => console.log('Mark complete', trade) },
+        { text: 'Cancel', role: 'cancel', icon: 'close' }
       ]
     });
-
     await actionSheet.present();
   }
 
+  async openAddTradeModal(holding: any) {
+    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding } });
+    modal.onDidDismiss().then(result => { if (result?.data?.success) this.refreshHoldings(); });
+    await modal.present();
+  }
+
+  async openEditTradeModal(holding: any, trade: any) {
+    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding, trade } });
+    modal.onDidDismiss().then(result => { if (result?.data?.success) this.refreshHoldings(); });
+    await modal.present();
+  }
+
+  async deleteTrade(trade: any) {
+    const confirmed = await this.uiHelper.showConfirm('Confirm', 'Are you sure want to delete trade?');
+    if (!confirmed) return;
+
+    try {
+      await this.supabase.deleteHolding(trade.id);
+      await this.uiHelper.showToast('Trade deleted successfully', 3000, 'top', 'success');
+      this.refreshHoldings();
+    } catch (err) {
+      console.error(err);
+      await this.uiHelper.showToast('Failed to delete trade', 3000, 'top', 'danger');
+    }
+  }
+
+  trackByHoldingId(index: number, holding: any) { return holding.id; }
+  trackByTradeId(index: number, trade: any) { return trade.id; }
 }

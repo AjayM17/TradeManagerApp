@@ -1,11 +1,8 @@
 <ion-header>
-
-  <!-- Top Toolbar: Title -->
   <ion-toolbar class="toolbar-grey">
     <ion-title>{{ selectedStatusType?.text || 'Holdings' }}</ion-title>
   </ion-toolbar>
 
-  <!-- Summary Toolbar: Invested / Current / P&L -->
   <ion-toolbar class="summary-toolbar toolbar-grey">
     <div class="summary-left">
       <div class="summary-row">
@@ -25,76 +22,69 @@
     </div>
   </ion-toolbar>
 
-  <!-- Bottom Toolbar: Icons -->
   <ion-toolbar class="icon-toolbar toolbar-grey">
-    <ion-buttons slot="end">
-      <ion-button (click)="openFilter()">
-        <ion-icon name="filter-outline"></ion-icon>
-      </ion-button>
-      <ion-button (click)="openSort()">
-        <ion-icon name="swap-vertical-outline"></ion-icon>
-      </ion-button>
+    <ion-buttons slot="end" style="position: relative;">
+      
+      <!-- Hidden Select -->
+      <ion-select #sortSelect interface="popover" 
+                  (ionChange)="setSort($event.detail.value.field, $event.detail.value.order)" 
+                  placeholder="" okText="Select" cancelText="Cancel" 
+                  style="opacity:0; position:absolute; right:0; top:0; bottom:0; width:40px;">
+        <ion-select-option [value]="{field:'name', order:'asc'}">Name A-Z</ion-select-option>
+        <ion-select-option [value]="{field:'name', order:'desc'}">Name Z-A</ion-select-option>
+        <ion-select-option [value]="{field:'pnl', order:'asc'}">P&L Low-High</ion-select-option>
+        <ion-select-option [value]="{field:'pnl', order:'desc'}">P&L High-Low</ion-select-option>
+        <ion-select-option [value]="{field:'investment', order:'asc'}">Invest Low-High</ion-select-option>
+        <ion-select-option [value]="{field:'investment', order:'desc'}">Invest High-Low</ion-select-option>
+      </ion-select>
+
+      <!-- Visible Icon -->
+      <ion-icon name="swap-vertical-outline" style="font-size:24px; cursor:pointer;" 
+                (click)="openSortPopover(sortSelect)">
+      </ion-icon>
+      
     </ion-buttons>
   </ion-toolbar>
-
 </ion-header>
 
 <ion-content fullscreen class="content-adjust">
-  <ion-card class="holding-card" *ngFor="let holding of holdings; let i = index">
+  <ion-card *ngFor="let holding of sortedHoldings; trackBy: trackByHoldingId; let i = index" class="holding-card">
     <div class="details">
       <div class="container">
         <div class="left">
           <p class="holding-name">{{ holding.name }}</p>
-          <div class="field-row">
-            <span class="title">Qty</span>
-            <span class="value">{{ holding.totalQty }}</span>
-          </div>
-          <div class="field-row">
-            <span class="title">Invested</span>
-            <span class="value">₹{{ holding.totalInvested | roundOff }}</span>
-          </div>
+          <div class="field-row"><span class="title">Qty</span><span class="value">{{ holding.totalQty }}</span></div>
+          <div class="field-row"><span class="title">Invested</span><span class="value">₹{{ holding.totalInvested | roundOff }}</span></div>
         </div>
-
         <div class="right">
           <div class="field-row">
             <span class="title">P&L</span>
             <span class="value" [ngClass]="getHoldingPnL(holding) >= 0 ? 'positive' : 'negative'">
               ₹{{ getHoldingPnL(holding) | roundOff }}
               <span *ngIf="holding.totalInvested > 0">
-                ({{ ((getHoldingPnL(holding) / holding.totalInvested) * 100) | roundOff }}%)
+                ({{ ((getHoldingPnL(holding)/holding.totalInvested)*100) | roundOff }}%)
               </span>
             </span>
           </div>
-          <div class="field-row">
-            <span class="title">Avg</span>
-            <span class="value">₹{{ holding.avgPrice | roundOff }}</span>
-          </div>
-          <div class="field-row">
-            <span class="title">SL/Exit</span>
-            <span class="value">₹{{ holding.stoploss }}</span>
-          </div>
+          <div class="field-row"><span class="title">Avg</span><span class="value">₹{{ holding.avgPrice | roundOff }}</span></div>
+          <div class="field-row"><span class="title">SL/Exit</span><span class="value">₹{{ holding.stoploss }}</span></div>
         </div>
       </div>
     </div>
 
-    <!-- BREAKDOWNS -->
     <ng-container *ngIf="expandedIndex === i">
-      <app-trade-item *ngFor="let trade of getSortedTrades(holding)" [trade]="trade"
-        (click)="openTradeActions(trade, holding)">
-      </app-trade-item>
+      <ng-container *ngFor="let trade of sortedTradesMap.get(holding.id) || []; trackBy: trackByTradeId">
+        <app-trade-item [trade]="trade" (click)="openTradeActions(trade, holding)"></app-trade-item>
+      </ng-container>
     </ng-container>
 
-    <!-- CENTERED BREAKDOWN LABEL -->
     <div class="breakdown_label" (click)="toggleExpand(i)">
       <ion-icon [name]="expandedIndex === i ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
       {{ expandedIndex === i ? 'Hide' : 'Show' }} Breakdowns
     </div>
   </ion-card>
 
-  <!-- FAB -->
   <ion-fab slot="fixed" vertical="bottom" horizontal="end">
-    <ion-fab-button (click)="openAddHoldingModal()">
-      <ion-icon name="add"></ion-icon>
-    </ion-fab-button>
+    <ion-fab-button (click)="openAddHoldingModal()"><ion-icon name="add"></ion-icon></ion-fab-button>
   </ion-fab>
 </ion-content>
