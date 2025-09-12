@@ -21,7 +21,7 @@ import { SupabaseService } from '../../services/supabase.service';
 import { TradeItemComponent } from '../../components/trade-item/trade-item.component';
 import { RoundOffPipe } from 'src/app/pipes/round-off.pipe';
 import { AddHoldingComponent } from '../add-holding/add-holding.component';
-import { transformHoldings, TradeEntry } from 'src/app/utils/holdings.helper';
+import { transformHoldings, TradeEntry, Holding } from 'src/app/utils/holdings.helper';
 import { UiHelperService } from 'src/app/services/ui-helper.service';
 
 type SortField = 'name' | 'pnl' | 'investment';
@@ -51,7 +51,7 @@ type SortOrder = 'asc' | 'desc';
   ]
 })
 export class HoldingComponent {
-  @ViewChild('sortSelect') sortSelect!: IonSelect; // reference to hidden select
+  @ViewChild('sortSelect') sortSelect!: IonSelect;
 
   private modalCtrl = inject(ModalController);
   private supabase = inject(SupabaseService);
@@ -60,13 +60,13 @@ export class HoldingComponent {
   private uiHelper = inject(UiHelperService);
   private cdr = inject(ChangeDetectorRef);
 
-  holdings: any[] = [];
-  sortedHoldings: any[] = [];
+  holdings: Holding[] = [];
+  sortedHoldings: Holding[] = [];
   expandedIndex: number | null = null;
   investment = 0;
   pnl_val = 0;
   selectedStatusType: any;
-  sortedTradesMap: Map<number, any[]> = new Map();
+  sortedTradesMap: Map<string, TradeEntry[]> = new Map(); // key changed to string (holding.id)
 
   sortField: SortField = 'name';
   sortOrder: SortOrder = 'asc';
@@ -159,7 +159,7 @@ export class HoldingComponent {
     this.expandedIndex = this.expandedIndex === index ? null : index;
   }
 
-  getHoldingPnL(holding: any): number {
+  getHoldingPnL(holding: Holding): number {
     let pnl = 0;
     if (holding.trades) {
       for (const t of holding.trades) {
@@ -179,7 +179,7 @@ export class HoldingComponent {
     await modal.present();
   }
 
-  async openTradeActions(trade: any, holding: any) {
+  async openTradeActions(trade: TradeEntry, holding: Holding) {
     const actionSheet = await this.actionSheetCtrl.create({
       header: `${holding.name} - Trade`,
       buttons: [
@@ -193,19 +193,19 @@ export class HoldingComponent {
     await actionSheet.present();
   }
 
-  async openAddTradeModal(holding: any) {
+  async openAddTradeModal(holding: Holding) {
     const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding } });
     modal.onDidDismiss().then(result => { if (result?.data?.success) this.refreshHoldings(); });
     await modal.present();
   }
 
-  async openEditTradeModal(holding: any, trade: any) {
+  async openEditTradeModal(holding: Holding, trade: TradeEntry) {
     const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding, trade } });
     modal.onDidDismiss().then(result => { if (result?.data?.success) this.refreshHoldings(); });
     await modal.present();
   }
 
-  async deleteTrade(trade: any) {
+  async deleteTrade(trade: TradeEntry) {
     const confirmed = await this.uiHelper.showConfirm('Confirm', 'Are you sure want to delete trade?');
     if (!confirmed) return;
 
@@ -219,6 +219,6 @@ export class HoldingComponent {
     }
   }
 
-  trackByHoldingId(index: number, holding: any) { return holding.id; }
-  trackByTradeId(index: number, trade: any) { return trade.id; }
+  trackByHoldingId(index: number, holding: Holding) { return holding.id; }
+  trackByTradeId(index: number, trade: TradeEntry) { return trade.id; }
 }

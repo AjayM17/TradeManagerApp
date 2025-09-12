@@ -11,6 +11,7 @@ export interface TradeEntry {
 }
 
 export interface Holding {
+  id: string; // Added unique id
   name: string;
   totalQty: number;
   avgPrice: number;
@@ -33,7 +34,7 @@ function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
 export function transformHoldings(data: TradeEntry[]): Holding[] {
   const grouped = groupBy(data, 'name');
 
-  return Object.keys(grouped).map(symbol => {
+  return Object.keys(grouped).map((symbol, index) => {
     const trades = grouped[symbol];
 
     const totalQty = trades.reduce((acc, t) => acc + (t.quantity || 0), 0);
@@ -41,6 +42,7 @@ export function transformHoldings(data: TradeEntry[]): Holding[] {
     const avgPrice = totalQty > 0 ? totalInvested / totalQty : 0;
 
     return {
+      id: `${symbol}-${index}`, // unique id per holding
       name: symbol,
       totalQty,
       avgPrice,
@@ -55,12 +57,4 @@ export function transformHoldings(data: TradeEntry[]): Holding[] {
       }))
     };
   });
-}
-
-
-export function calcAge(tradeDate: string): number {
-  const today = new Date();
-  const trade = new Date(tradeDate);
-  const diff = today.getTime() - trade.getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
 }

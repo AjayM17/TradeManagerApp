@@ -22,11 +22,12 @@
       <div class="field-row">
         <span
           class="value"
-          [ngClass]="(trade.entryprice - trade.stoploss) >= 0 ? 'positive' : 'negative'"
+          [ngClass]="(trade.stoploss - trade.entryprice ) >= 0 ? 'positive' : 'negative'"
         >
-          ₹{{ ((trade.entryprice - trade.stoploss) * trade.quantity) | roundOff }}
+          ₹{{ ((trade.stoploss  - trade.entryprice) * trade.quantity) | roundOff }}
         </span>
-        <span class="age">| Age {{ trade.trade_date | age }} d</span>
+       <span class="age">| Age {{ trade.trade_date | age }}</span>
+
       </div>
       <div class="field-row">
         <span class="title">Price:</span>

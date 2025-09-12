@@ -76,7 +76,7 @@ export class AddHoldingComponent implements OnInit {
     this.holdingForm = this.fb.group({
       name: new FormControl({ value: '', disabled: false }, Validators.required),
       status: ['active', Validators.required],
-      trade_date: ['', Validators.required],
+      trade_date: [null],
       entryprice: [null, Validators.required],
       stoploss: new FormControl({ value: null, disabled: false }, Validators.required),
       quantity: [null, Validators.required],
@@ -94,12 +94,6 @@ export class AddHoldingComponent implements OnInit {
   }
 
   private patchForm(data: any) {
-    const nameControl = this.holdingForm.get('name');
-    const stoplossControl = this.holdingForm.get('stoploss');
-
-    nameControl?.enable({ emitEvent: false });
-    stoplossControl?.enable({ emitEvent: false });
-
     this.holdingForm.patchValue({
       name: data.name || '',
       status: data.status || '',
@@ -108,9 +102,6 @@ export class AddHoldingComponent implements OnInit {
       stoploss: data.stoploss || null,
       quantity: data.quantity || null,
     }, { emitEvent: false });
-
-    nameControl?.disable({ emitEvent: false });
-    stoplossControl?.disable({ emitEvent: false });
 
     this.updateInvestmentAndRisk();
   }
@@ -126,48 +117,63 @@ export class AddHoldingComponent implements OnInit {
     const quantity = +(this.holdingForm.get('quantity')?.value || 0);
 
     this.investment = entryPrice * quantity;
-    this.riskValue = (entryPrice - stoploss) * quantity;
-    this.riskPer = this.investment > 0 ? (this.riskValue / this.investment) * 100 : 0;
+
+    // risk value absolute
+    this.riskValue = Math.abs((stoploss - entryPrice) * (quantity || 1));
+
+    // percentage risk (price only)
+    this.riskPer = entryPrice > 0 ? (Math.abs(stoploss - entryPrice) / entryPrice) * 100 : 0;
   }
 
-  async save() {
-    if (!this.holdingForm.valid) return;
+async save() {
+  if (!this.holdingForm.valid) return;
 
-    if (this.investment > this.maxInvestment) {
-      await this.uiHelper.showToast(`Investment exceeds limit of ${this.maxInvestment}`, 3000, 'top', 'danger');
-      return;
-    }
-    if (this.riskValue > this.maxRiskValue) {
-      await this.uiHelper.showToast(`Risk Value exceeds limit of ${this.maxRiskValue}`, 3000, 'top', 'danger');
-      return;
-    }
-
-    const formData = this.holdingForm.getRawValue();
-    if (this.holding?.id) formData.holdingId = this.holding.id;
-    if (this.trade?.id) formData.id = this.trade.id;
-
-    const loading = await this.loadingCtrl.create({ message: 'Saving holding...', spinner: 'crescent' });
-    await loading.present();
-
-    try {
-      if (this.selectedFile) {
-        const imageUrl = await this.supabaseService.uploadImage(this.selectedFile);
-        formData.image = imageUrl;
-      }
-
-      if (this.trade?.id) {
-        await this.supabaseService.updateHolding(formData);
-      } else {
-        await this.supabaseService.insertHolding(formData);
-      }
-
-      await loading.dismiss();
-      this.dismiss(true);
-    } catch (error) {
-      console.error(error);
-      await loading.dismiss();
-    }
+  if (this.investment > this.maxInvestment) {
+    await this.uiHelper.showToast(`Investment exceeds limit of ${this.maxInvestment}`, 3000, 'top', 'danger');
+    return;
   }
+  if (this.riskValue > this.maxRiskValue) {
+    await this.uiHelper.showToast(`Risk Value exceeds limit of ${this.maxRiskValue}`, 3000, 'top', 'danger');
+    return;
+  }
+
+  const formData = this.holdingForm.getRawValue();
+
+  // Keep holdingId for frontend only
+  const holdingIdFrontend = this.holding?.id;
+
+  if (this.trade?.id) formData.id = this.trade.id;
+
+   if (!formData.trade_date) {
+    formData.trade_date = null;
+  }
+
+  const loading = await this.loadingCtrl.create({ message: 'Saving holding...', spinner: 'crescent' });
+  await loading.present();
+
+  try {
+    if (this.selectedFile) {
+      const imageUrl = await this.supabaseService.uploadImage(this.selectedFile);
+      formData.image = imageUrl;
+    }
+
+    // Remove frontend-only holdingId before sending to Supabase
+    delete formData.holdingId;
+
+    if (this.trade?.id) {
+      await this.supabaseService.updateHolding(formData);
+    } else {
+      await this.supabaseService.insertHolding(formData);
+    }
+
+    await loading.dismiss();
+    this.dismiss(true);
+  } catch (error) {
+    console.error(error);
+    await loading.dismiss();
+  }
+}
+
 
   dismiss(success: boolean = false) {
     this.modalCtrl.dismiss({ success });
