@@ -118,7 +118,7 @@ export class AddHoldingComponent implements OnInit {
   private patchForm(data: any) {
     this.holdingForm.patchValue({
       name: data.name || '',
-      status: data.status || '',
+      status: data.status || 'active',
       trade_date: data.trade_date || '',
       entryprice: data.entryprice || null,
       stoploss: data.stoploss || null,
