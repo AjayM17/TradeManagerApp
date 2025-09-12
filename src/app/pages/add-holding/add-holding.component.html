@@ -82,6 +82,6 @@
     </div>
 
     <!-- Save -->
-    <ion-button expand="block" type="submit" [disabled]="!canSave()">Save</ion-button>
+    <ion-button expand="block" type="submit"  [color]="(investment > maxInvestment || riskValue > maxRiskValue) ? 'danger' : 'primary'" [disabled]="!canSave()">Save</ion-button>
   </form>
 </ion-content>

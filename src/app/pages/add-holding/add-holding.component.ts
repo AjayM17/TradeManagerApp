@@ -61,8 +61,8 @@ export class AddHoldingComponent implements OnInit {
   riskPer = 0;
   riskValue = 0;
 
-  maxInvestment = 50000;
-  maxRiskValue = 3000;
+  maxInvestment = 0;
+  maxRiskValue = 0;
 
   modalHeader = 'Add Holding';
 
@@ -83,13 +83,35 @@ export class AddHoldingComponent implements OnInit {
     });
   }
 
-  ngOnInit() {
+  async ngOnInit() {
+    // 🔹 Load Settings first
+    await this.loadSettings();
+
     if (this.trade) {
       this.modalHeader = 'Edit Trade';
       this.patchForm(this.trade);
     } else if (this.holding) {
       this.modalHeader = 'Add Trade';
       this.patchForm(this.holding);
+    }
+  }
+
+  private async loadSettings() {
+    try {
+      const setting = await this.supabaseService.getSetting();
+      if (setting) {
+        this.maxInvestment = setting.max_trade_amount || 50000;
+        this.maxRiskValue = setting.max_stop_loss_amount || 3000;
+      } else {
+        // fallback defaults
+        this.maxInvestment = 50000;
+        this.maxRiskValue = 3000;
+      }
+    } catch (err) {
+      console.error('Failed to load settings:', err);
+      // fallback
+      this.maxInvestment = 50000;
+      this.maxRiskValue = 3000;
     }
   }
 
@@ -125,61 +147,62 @@ export class AddHoldingComponent implements OnInit {
     this.riskPer = entryPrice > 0 ? (Math.abs(stoploss - entryPrice) / entryPrice) * 100 : 0;
   }
 
-async save() {
-  if (!this.holdingForm.valid) return;
+  async save() {
+    if (!this.holdingForm.valid) return;
 
-  if (this.investment > this.maxInvestment) {
-    await this.uiHelper.showToast(`Investment exceeds limit of ${this.maxInvestment}`, 3000, 'top', 'danger');
-    return;
-  }
-  if (this.riskValue > this.maxRiskValue) {
-    await this.uiHelper.showToast(`Risk Value exceeds limit of ${this.maxRiskValue}`, 3000, 'top', 'danger');
-    return;
-  }
-
-  const formData = this.holdingForm.getRawValue();
-
-  // Keep holdingId for frontend only
-  const holdingIdFrontend = this.holding?.id;
-
-  if (this.trade?.id) formData.id = this.trade.id;
-
-   if (!formData.trade_date) {
-    formData.trade_date = null;
-  }
-
-  const loading = await this.loadingCtrl.create({ message: 'Saving holding...', spinner: 'crescent' });
-  await loading.present();
-
-  try {
-    if (this.selectedFile) {
-      const imageUrl = await this.supabaseService.uploadImage(this.selectedFile);
-      formData.image = imageUrl;
+    if (this.investment > this.maxInvestment) {
+      await this.uiHelper.showToast(`Investment exceeds limit of ${this.maxInvestment}`, 3000, 'top', 'danger');
+      return;
+    }
+    if (this.riskValue > this.maxRiskValue) {
+      await this.uiHelper.showToast(`Risk Value exceeds limit of ${this.maxRiskValue}`, 3000, 'top', 'danger');
+      return;
     }
 
-    // Remove frontend-only holdingId before sending to Supabase
-    delete formData.holdingId;
+    const formData = this.holdingForm.getRawValue();
 
-    if (this.trade?.id) {
-      await this.supabaseService.updateHolding(formData);
-    } else {
-      await this.supabaseService.insertHolding(formData);
+    // Keep holdingId for frontend only
+    const holdingIdFrontend = this.holding?.id;
+
+    if (this.trade?.id) formData.id = this.trade.id;
+
+    if (!formData.trade_date) {
+      formData.trade_date = null;
     }
 
-    await loading.dismiss();
-    this.dismiss(true);
-  } catch (error) {
-    console.error(error);
-    await loading.dismiss();
-  }
-}
+    const loading = await this.loadingCtrl.create({ message: 'Saving holding...', spinner: 'crescent' });
+    await loading.present();
 
+    try {
+      if (this.selectedFile) {
+        const imageUrl = await this.supabaseService.uploadImage(this.selectedFile);
+        formData.image = imageUrl;
+      }
+
+      // Remove frontend-only holdingId before sending to Supabase
+      delete formData.holdingId;
+
+      if (this.trade?.id) {
+        await this.supabaseService.updateHolding(formData);
+      } else {
+        await this.supabaseService.insertHolding(formData);
+      }
+
+      await loading.dismiss();
+      this.dismiss(true);
+    } catch (error) {
+      console.error(error);
+      await loading.dismiss();
+    }
+  }
 
   dismiss(success: boolean = false) {
     this.modalCtrl.dismiss({ success });
   }
 
   canSave(): boolean {
-    return this.holdingForm.valid && this.investment <= this.maxInvestment && this.riskValue <= this.maxRiskValue;
+    return this.holdingForm.valid &&
+      this.investment <= this.maxInvestment &&
+      this.riskValue <= this.maxRiskValue;
   }
 }

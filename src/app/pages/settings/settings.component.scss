@@ -1,0 +1,29 @@
+.form-field {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+
+  .form-label {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--ion-color-dark);
+  }
+
+  ion-input,
+  input,
+  ion-select {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    font-size: 14px;
+    --padding-start: 10px;
+    --padding-end: 10px;
+  }
+
+  .value-text {
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 6px;
+  }
+}
