@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { environment } from 'src/environments/environment';
+import { Holding, TradeEntry } from '../utils/holdings.helper';
 
 @Injectable({
   providedIn: 'root',
@@ -61,15 +62,66 @@ export class SupabaseService {
     if (error) throw error;
   }
 
-  async getHoldings() {
-    const { data, error } = await this.supabase
-      .from('holdings')
-      .select('*')
-      .order('trade_date', { ascending: false });
+async getHoldings(status: string = 'active'): Promise<Holding[]> {
+  const { data, error } = await this.supabase
+    .from('holdings')
+    .select('*')
+    .eq('status', status)
+    .order('trade_date', { ascending: false });
 
-    if (error) throw error;
-    return data;
-  }
+  if (error) throw error;
+
+  // Group by symbol (name)
+  const grouped = data.reduce((acc: Record<string, TradeEntry[]>, row: any) => {
+    const trade: TradeEntry = {
+      id: row.id,
+      name: row.name,
+      quantity: row.quantity,
+      entryprice: row.entryprice,
+      stoploss: row.stoploss, // will overwrite with primary later
+      status: row.status,
+      trade_date: row.trade_date,
+      image: row.image,
+      created_at: row.created_at,
+      is_primary: row.is_primary, // keep track of primary
+    };
+
+    if (!acc[row.name]) acc[row.name] = [];
+    acc[row.name].push(trade);
+    return acc;
+  }, {});
+
+  // Convert grouped object into Holding[]
+  const holdings: Holding[] = Object.entries(grouped).map(([name, trades]) => {
+    // Sort trades by trade_date descending
+    trades.sort((a, b) => new Date(b.trade_date).getTime() - new Date(a.trade_date).getTime());
+
+    const totalQty = trades.reduce((sum, t) => sum + t.quantity, 0);
+    const totalInvested = trades.reduce((sum, t) => sum + t.entryprice * t.quantity, 0);
+    const avgPrice = totalQty ? totalInvested / totalQty : 0;
+
+    // Find primary trade
+    const primaryTrade = trades.find(t => (t as any).is_primary) || trades[0];
+    const stoploss = primaryTrade.stoploss;
+
+    // Update stoploss for all trades to primary's stoploss
+    const updatedTrades = trades.map(t => ({ ...t, stoploss }));
+
+    return {
+      id: trades[0].id, // unique id for holding (latest trade id)
+      name,
+      totalQty,
+      avgPrice,
+      totalInvested,
+      stoploss,
+      trades: updatedTrades,
+    };
+  });
+
+  console.log(holdings)
+  return holdings;
+}
+
 
   async deleteHolding(id: string): Promise<void> {
     if (!id) throw new Error('Trade/Holding ID is required for deletion');

@@ -8,6 +8,7 @@ export interface TradeEntry {
   trade_date: string;
   image?: string | null;
   created_at: string;
+  is_primary: boolean
 }
 
 export interface Holding {

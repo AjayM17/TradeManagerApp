@@ -21,7 +21,7 @@ import { SupabaseService } from '../../services/supabase.service';
 import { TradeItemComponent } from '../../components/trade-item/trade-item.component';
 import { RoundOffPipe } from 'src/app/pipes/round-off.pipe';
 import { AddHoldingComponent } from '../add-holding/add-holding.component';
-import { transformHoldings, TradeEntry, Holding } from 'src/app/utils/holdings.helper';
+import { TradeEntry, Holding } from 'src/app/utils/holdings.helper';
 import { UiHelperService } from 'src/app/services/ui-helper.service';
 
 type SortField = 'name' | 'pnl' | 'investment';
@@ -65,8 +65,7 @@ export class HoldingComponent {
   expandedHoldingId: string | null = null;
   investment = 0;
   pnl_val = 0;
-  selectedStatusType: any;
-  sortedTradesMap: Map<string, TradeEntry[]> = new Map();
+  selectedStatus: 'active' | 'waiting' | 'completed' = 'active';
 
   sortField: SortField = 'name';
   sortOrder: SortOrder = 'asc';
@@ -80,8 +79,8 @@ export class HoldingComponent {
     await loading.present();
 
     try {
-      const data = await this.supabase.getHoldings();
-      this.holdings = data ? transformHoldings(data as TradeEntry[]) : [];
+      const data = await this.supabase.getHoldings(this.selectedStatus);
+      this.holdings = data || [];
     } catch (err) {
       console.error('Error fetching holdings', err);
       this.holdings = [];
@@ -89,26 +88,9 @@ export class HoldingComponent {
       await loading.dismiss();
     }
 
-    setTimeout(() => {
-      this.precomputeTrades();
-      this.calculateSummary();
-      this.applySorting();
-      this.cdr.detectChanges();
-    });
-  }
-
-  precomputeTrades() {
-    this.sortedTradesMap.clear();
-    this.holdings.forEach(h => {
-      if (h.trades) {
-        const sorted = [...h.trades]
-          .sort((a, b) => new Date(a.trade_date).getTime() - new Date(b.trade_date).getTime())
-          .map((trade, index) => ({ ...trade, isInitial: index === 0 }));
-        this.sortedTradesMap.set(h.id, sorted);
-      } else {
-        this.sortedTradesMap.set(h.id, []);
-      }
-    });
+    this.calculateSummary();
+    this.applySorting();
+    this.cdr.detectChanges();
   }
 
   calculateSummary() {
@@ -121,6 +103,15 @@ export class HoldingComponent {
     this.investment = investment;
     this.pnl_val = currentValue - investment;
   }
+
+  openFilterPopover(select: IonSelect) {
+  select.open();
+}
+
+onFilterChange(value: 'active' | 'waiting' | 'completed') {
+  this.selectedStatus = value;
+  this.refreshHoldings();
+}
 
   applySorting() {
     this.sortedHoldings = [...this.holdings].sort((a, b) => {
@@ -161,13 +152,7 @@ export class HoldingComponent {
   }
 
   getHoldingPnL(holding: Holding): number {
-    let pnl = 0;
-    if (holding.trades) {
-      for (const t of holding.trades) {
-        pnl += (t.stoploss - t.entryprice) * t.quantity;
-      }
-    }
-    return pnl;
+    return holding.trades?.reduce((sum, t) => sum + (t.stoploss - t.entryprice) * t.quantity, 0) || 0;
   }
 
   getPnlPer(): string {
@@ -175,7 +160,7 @@ export class HoldingComponent {
   }
 
   async openAddHoldingModal() {
-    const modal = await this.modalCtrl.create({ component: AddHoldingComponent });
+    const modal = await this.modalCtrl.create({ component: AddHoldingComponent,componentProps: { selectedStatus: this.selectedStatus } });
     modal.onDidDismiss().then(result => { if (result?.data?.success) this.refreshHoldings(); });
     await modal.present();
   }
@@ -187,7 +172,6 @@ export class HoldingComponent {
         { text: 'Add More', icon: 'add-circle-outline', handler: () => this.openAddTradeModal(holding) },
         { text: 'Edit', icon: 'create-outline', handler: () => this.openEditTradeModal(holding, trade) },
         { text: 'Delete', role: 'destructive', icon: 'trash-outline', handler: () => this.deleteTrade(trade) },
-        { text: 'Mark As Complete', icon: 'checkmark-done-outline', handler: () => console.log('Mark complete', trade) },
         { text: 'Cancel', role: 'cancel', icon: 'close' }
       ]
     });
@@ -195,13 +179,13 @@ export class HoldingComponent {
   }
 
   async openAddTradeModal(holding: Holding) {
-    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding, isAdditionalTrade: true } });
+    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding, isAdditionalTrade: true,  selectedStatus: this.selectedStatus } });
     modal.onDidDismiss().then(result => { if (result?.data?.success) this.refreshHoldings(); });
     await modal.present();
   }
 
   async openEditTradeModal(holding: Holding, trade: TradeEntry) {
-    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding, trade } });
+    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding, trade , selectedStatus: this.selectedStatus} });
     modal.onDidDismiss().then(result => { if (result?.data?.success) this.refreshHoldings(); });
     await modal.present();
   }
@@ -213,7 +197,7 @@ export class HoldingComponent {
     try {
       await this.supabase.deleteHolding(trade.id);
       await this.uiHelper.showToast('Trade deleted successfully', 3000, 'top', 'success');
-      this.expandedHoldingId = null; // collapse after deletion
+      this.expandedHoldingId = null;
       this.refreshHoldings();
     } catch (err) {
       console.error(err);

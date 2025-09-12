@@ -54,6 +54,7 @@ export class AddHoldingComponent implements OnInit {
   @Input() holding: any;
   @Input() trade: any;
   @Input() isAdditionalTrade: boolean = false;
+  @Input() selectedStatus: 'active' | 'waiting' | 'completed' = 'active';
 
   holdingForm: FormGroup;
   selectedFile: File | null = null;
@@ -76,7 +77,7 @@ export class AddHoldingComponent implements OnInit {
   ) {
     this.holdingForm = this.fb.group({
       name: new FormControl({ value: '', disabled: false }, Validators.required),
-      status: ['active', Validators.required],
+      status: [this.selectedStatus, Validators.required],
       trade_date: [null],
       entryprice: [null, Validators.required],
       stoploss: new FormControl({ value: null, disabled: false }, Validators.required),
@@ -87,7 +88,8 @@ export class AddHoldingComponent implements OnInit {
   async ngOnInit() {
     // 🔹 Load Settings first
     await this.loadSettings();
-
+    console.log(this.selectedStatus)
+     this.holdingForm.get('status')?.setValue(this.selectedStatus || 'active');
     if (this.trade) {
       this.modalHeader = 'Edit Trade';
       this.patchForm(this.trade);
@@ -96,7 +98,8 @@ export class AddHoldingComponent implements OnInit {
       this.patchForm(this.holding);
     }
 
-     if (this.isAdditionalTrade) {
+    const isNonEditable = this.isAdditionalTrade || (this.trade && !this.trade.is_primary);
+  if (isNonEditable) {
     this.holdingForm.get('name')?.disable();
     this.holdingForm.get('stoploss')?.disable();
   }
@@ -124,7 +127,6 @@ export class AddHoldingComponent implements OnInit {
   private patchForm(data: any) {
     this.holdingForm.patchValue({
       name: data.name || '',
-      status: data.status || 'active',
       trade_date: data.trade_date || '',
       entryprice: data.entryprice || null,
       stoploss: data.stoploss || null,
@@ -165,6 +167,13 @@ export class AddHoldingComponent implements OnInit {
       formData.trade_date = null;
     }
 
+    if (this.isAdditionalTrade) {
+      formData.is_primary = false; // additional trades are never primary
+    } else if (!this.trade?.id) {
+      formData.is_primary = true;  // new trade is primary
+    } else {
+      formData.is_primary = this.trade.is_primary || false; // editing existing trade
+    }
     const loading = await this.loadingCtrl.create({ message: 'Saving holding...', spinner: 'crescent' });
     await loading.present();
 
@@ -202,6 +211,6 @@ export class AddHoldingComponent implements OnInit {
   }
 
   get riskValueAbs(): number {
-  return Math.abs(this.riskValue || 0);
-}
+    return Math.abs(this.riskValue || 0);
+  }
 }
