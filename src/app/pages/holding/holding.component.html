@@ -24,8 +24,6 @@
 
   <ion-toolbar class="icon-toolbar toolbar-grey">
     <ion-buttons slot="end" style="position: relative;">
-      
-      <!-- Hidden Select -->
       <ion-select #sortSelect interface="popover" 
                   (ionChange)="setSort($event.detail.value.field, $event.detail.value.order)" 
                   placeholder="" okText="Select" cancelText="Cancel" 
@@ -38,17 +36,15 @@
         <ion-select-option [value]="{field:'investment', order:'desc'}">Invest High-Low</ion-select-option>
       </ion-select>
 
-      <!-- Visible Icon -->
       <ion-icon name="swap-vertical-outline" style="font-size:24px; cursor:pointer;" 
                 (click)="openSortPopover(sortSelect)">
       </ion-icon>
-      
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
 <ion-content fullscreen class="content-adjust">
-  <ion-card *ngFor="let holding of sortedHoldings; trackBy: trackByHoldingId; let i = index" class="holding-card">
+  <ion-card *ngFor="let holding of sortedHoldings; trackBy: trackByHoldingId" class="holding-card">
     <div class="details">
       <div class="container">
         <div class="left">
@@ -72,15 +68,15 @@
       </div>
     </div>
 
-    <ng-container *ngIf="expandedIndex === i">
+    <ng-container *ngIf="expandedHoldingId === holding.id">
       <ng-container *ngFor="let trade of sortedTradesMap.get(holding.id) || []; trackBy: trackByTradeId">
         <app-trade-item [trade]="trade" (click)="openTradeActions(trade, holding)"></app-trade-item>
       </ng-container>
     </ng-container>
 
-    <div class="breakdown_label" (click)="toggleExpand(i)">
-      <ion-icon [name]="expandedIndex === i ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
-      {{ expandedIndex === i ? 'Hide' : 'Show' }} Breakdowns
+    <div class="breakdown_label" (click)="toggleExpand(holding.id); $event.stopPropagation()">
+      <ion-icon [name]="expandedHoldingId === holding.id ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+      {{ expandedHoldingId === holding.id ? 'Hide' : 'Show' }} Breakdowns
     </div>
   </ion-card>
 

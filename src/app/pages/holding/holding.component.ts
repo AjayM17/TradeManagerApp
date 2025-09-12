@@ -62,11 +62,11 @@ export class HoldingComponent {
 
   holdings: Holding[] = [];
   sortedHoldings: Holding[] = [];
-  expandedIndex: number | null = null;
+  expandedHoldingId: string | null = null;
   investment = 0;
   pnl_val = 0;
   selectedStatusType: any;
-  sortedTradesMap: Map<string, TradeEntry[]> = new Map(); // key changed to string (holding.id)
+  sortedTradesMap: Map<string, TradeEntry[]> = new Map();
 
   sortField: SortField = 'name';
   sortOrder: SortOrder = 'asc';
@@ -155,8 +155,9 @@ export class HoldingComponent {
     select.open();
   }
 
-  toggleExpand(index: number) {
-    this.expandedIndex = this.expandedIndex === index ? null : index;
+  toggleExpand(holdingId: string) {
+    this.expandedHoldingId = this.expandedHoldingId === holdingId ? null : holdingId;
+    this.cdr.detectChanges();
   }
 
   getHoldingPnL(holding: Holding): number {
@@ -194,7 +195,7 @@ export class HoldingComponent {
   }
 
   async openAddTradeModal(holding: Holding) {
-    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding,  isAdditionalTrade: true } });
+    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding, isAdditionalTrade: true } });
     modal.onDidDismiss().then(result => { if (result?.data?.success) this.refreshHoldings(); });
     await modal.present();
   }
@@ -212,6 +213,7 @@ export class HoldingComponent {
     try {
       await this.supabase.deleteHolding(trade.id);
       await this.uiHelper.showToast('Trade deleted successfully', 3000, 'top', 'success');
+      this.expandedHoldingId = null; // collapse after deletion
       this.refreshHoldings();
     } catch (err) {
       console.error(err);
