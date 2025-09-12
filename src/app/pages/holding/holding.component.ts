@@ -163,7 +163,7 @@ export class HoldingComponent {
     let pnl = 0;
     if (holding.trades) {
       for (const t of holding.trades) {
-        pnl += (t.entryprice - t.stoploss) * t.quantity;
+        pnl += (t.stoploss - t.entryprice) * t.quantity;
       }
     }
     return pnl;
@@ -194,7 +194,7 @@ export class HoldingComponent {
   }
 
   async openAddTradeModal(holding: Holding) {
-    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding } });
+    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding,  isAdditionalTrade: true } });
     modal.onDidDismiss().then(result => { if (result?.data?.success) this.refreshHoldings(); });
     await modal.present();
   }

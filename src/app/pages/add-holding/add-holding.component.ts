@@ -53,6 +53,7 @@ import { UiHelperService } from 'src/app/services/ui-helper.service';
 export class AddHoldingComponent implements OnInit {
   @Input() holding: any;
   @Input() trade: any;
+  @Input() isAdditionalTrade: boolean = false;
 
   holdingForm: FormGroup;
   selectedFile: File | null = null;
@@ -94,6 +95,11 @@ export class AddHoldingComponent implements OnInit {
       this.modalHeader = 'Add Trade';
       this.patchForm(this.holding);
     }
+
+     if (this.isAdditionalTrade) {
+    this.holdingForm.get('name')?.disable();
+    this.holdingForm.get('stoploss')?.disable();
+  }
   }
 
   private async loadSettings() {
@@ -141,28 +147,17 @@ export class AddHoldingComponent implements OnInit {
     this.investment = entryPrice * quantity;
 
     // risk value absolute
-    this.riskValue = Math.abs((stoploss - entryPrice) * (quantity || 1));
+    this.riskValue = (stoploss - entryPrice) * (quantity || 1);
 
     // percentage risk (price only)
-    this.riskPer = entryPrice > 0 ? (Math.abs(stoploss - entryPrice) / entryPrice) * 100 : 0;
+    this.riskPer = entryPrice > 0 ? ((stoploss - entryPrice) / entryPrice) * 100 : 0;
   }
 
   async save() {
     if (!this.holdingForm.valid) return;
 
-    if (this.investment > this.maxInvestment) {
-      await this.uiHelper.showToast(`Investment exceeds limit of ${this.maxInvestment}`, 3000, 'top', 'danger');
-      return;
-    }
-    if (this.riskValue > this.maxRiskValue) {
-      await this.uiHelper.showToast(`Risk Value exceeds limit of ${this.maxRiskValue}`, 3000, 'top', 'danger');
-      return;
-    }
-
     const formData = this.holdingForm.getRawValue();
 
-    // Keep holdingId for frontend only
-    const holdingIdFrontend = this.holding?.id;
 
     if (this.trade?.id) formData.id = this.trade.id;
 
@@ -205,4 +200,8 @@ export class AddHoldingComponent implements OnInit {
       this.investment <= this.maxInvestment &&
       this.riskValue <= this.maxRiskValue;
   }
+
+  get riskValueAbs(): number {
+  return Math.abs(this.riskValue || 0);
+}
 }
