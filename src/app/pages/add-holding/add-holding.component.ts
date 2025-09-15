@@ -167,13 +167,6 @@ export class AddHoldingComponent implements OnInit {
       formData.trade_date = null;
     }
 
-    if (this.isAdditionalTrade) {
-      formData.is_primary = false; // additional trades are never primary
-    } else if (!this.trade?.id) {
-      formData.is_primary = true;  // new trade is primary
-    } else {
-      formData.is_primary = this.trade.is_primary || false; // editing existing trade
-    }
     const loading = await this.loadingCtrl.create({ message: 'Saving holding...', spinner: 'crescent' });
     await loading.present();
 
@@ -204,11 +197,14 @@ export class AddHoldingComponent implements OnInit {
     this.modalCtrl.dismiss({ success });
   }
 
-  canSave(): boolean {
-    return this.holdingForm.valid &&
-      this.investment <= this.maxInvestment &&
-      this.riskValue <= this.maxRiskValue;
-  }
+canSave(): boolean {
+  return this.holdingForm.valid &&
+    this.investment <= this.maxInvestment &&
+    (
+      this.riskValue >= 0 || // profit → always allowed
+      Math.abs(this.riskValue) <= this.maxRiskValue // loss → check limit
+    );
+}
 
   get riskValueAbs(): number {
     return Math.abs(this.riskValue || 0);

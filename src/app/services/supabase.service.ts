@@ -78,12 +78,12 @@ async getHoldings(status: string = 'active'): Promise<Holding[]> {
       name: row.name,
       quantity: row.quantity,
       entryprice: row.entryprice,
-      stoploss: row.stoploss, // will overwrite with primary later
+      stoploss: row.stoploss,
       status: row.status,
       trade_date: row.trade_date,
       image: row.image,
       created_at: row.created_at,
-      is_primary: row.is_primary, // keep track of primary
+      is_primary: false
     };
 
     if (!acc[row.name]) acc[row.name] = [];
@@ -93,34 +93,34 @@ async getHoldings(status: string = 'active'): Promise<Holding[]> {
 
   // Convert grouped object into Holding[]
   const holdings: Holding[] = Object.entries(grouped).map(([name, trades]) => {
-    // Sort trades by trade_date descending
-    trades.sort((a, b) => new Date(b.trade_date).getTime() - new Date(a.trade_date).getTime());
+    // Sort trades by trade_date ascending (oldest first → primary)
+    trades.sort((a, b) => new Date(a.trade_date).getTime() - new Date(b.trade_date).getTime());
 
     const totalQty = trades.reduce((sum, t) => sum + t.quantity, 0);
     const totalInvested = trades.reduce((sum, t) => sum + t.entryprice * t.quantity, 0);
     const avgPrice = totalQty ? totalInvested / totalQty : 0;
 
-    // Find primary trade
-    const primaryTrade = trades.find(t => (t as any).is_primary) || trades[0];
-    const stoploss = primaryTrade.stoploss;
+    // Oldest trade should be primary
+    trades = trades.map((t, idx) => ({ ...t, is_primary: idx === 0 }));
 
-    // Update stoploss for all trades to primary's stoploss
-    const updatedTrades = trades.map(t => ({ ...t, stoploss }));
+    const primaryTrade = trades[0];
 
     return {
-      id: trades[0].id, // unique id for holding (latest trade id)
+      id: primaryTrade.id, // oldest trade id as holding id
       name,
       totalQty,
       avgPrice,
       totalInvested,
-      stoploss,
-      trades: updatedTrades,
+      stoploss: primaryTrade.stoploss,
+      trades,
     };
   });
 
-  console.log(holdings)
+  console.log(holdings);
   return holdings;
 }
+
+
 
 
   async deleteHolding(id: string): Promise<void> {
