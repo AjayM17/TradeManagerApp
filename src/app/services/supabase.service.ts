@@ -104,6 +104,10 @@ async getHoldings(status: string = 'active'): Promise<Holding[]> {
     trades = trades.map((t, idx) => ({ ...t, is_primary: idx === 0 }));
 
     const primaryTrade = trades[0];
+     const stoploss = primaryTrade.stoploss;
+
+    // Update stoploss for all trades to primary's stoploss
+    const updatedTrades = trades.map(t => ({ ...t, stoploss }));
 
     return {
       id: primaryTrade.id, // oldest trade id as holding id
@@ -112,7 +116,7 @@ async getHoldings(status: string = 'active'): Promise<Holding[]> {
       avgPrice,
       totalInvested,
       stoploss: primaryTrade.stoploss,
-      trades,
+      trades: updatedTrades,
     };
   });
 
