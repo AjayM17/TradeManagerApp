@@ -91,6 +91,7 @@ export class HoldingComponent {
     this.calculateSummary();
     this.applySorting();
     this.cdr.detectChanges();
+    console.log(this.sortedHoldings)
   }
 
   calculateSummary() {

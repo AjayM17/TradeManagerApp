@@ -53,6 +53,16 @@
       <ion-input type="number" formControlName="stoploss" (ionInput)="updateInvestmentAndRisk()"></ion-input>
     </div>
 
+    <div class="form-field">
+      <label class="form-label">Initial SL</label>
+      
+
+      <ion-input type="number" formControlName="initial_stoploss">
+      </ion-input>
+      <ion-toggle formControlName="enableInitialSL" (ionChange)="onToggleInitialSL($event)">
+      </ion-toggle>
+    </div>
+
     <!-- Quantity -->
     <div class="form-field">
       <label class="form-label">Quantity</label>
@@ -82,9 +92,7 @@
     </div>
 
     <!-- Save -->
-    <ion-button expand="block" type="submit"
-     [color]="!canSave() ? 'danger' : 'primary'"
-      [disabled]="!canSave()">
+    <ion-button expand="block" type="submit" [color]="!canSave() ? 'danger' : 'primary'" [disabled]="!canSave()">
       Save
     </ion-button>
 

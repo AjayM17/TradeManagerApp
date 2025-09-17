@@ -23,39 +23,35 @@
   </ion-toolbar>
 
   <ion-toolbar class="icon-toolbar toolbar-grey">
-   <ion-buttons slot="end" style="position: relative;">
+    <ion-buttons slot="end" style="position: relative;">
 
-  <!-- Sort -->
-  <ion-select #sortSelect interface="popover" 
-              (ionChange)="setSort($event.detail.value.field, $event.detail.value.order)" 
-              placeholder="" okText="Select" cancelText="Cancel" 
-              style="opacity:0; position:absolute; right:40px; top:0; bottom:0; width:40px;">
-    <ion-select-option [value]="{field:'name', order:'asc'}">Name A-Z</ion-select-option>
-    <ion-select-option [value]="{field:'name', order:'desc'}">Name Z-A</ion-select-option>
-    <ion-select-option [value]="{field:'pnl', order:'asc'}">P&L Low-High</ion-select-option>
-    <ion-select-option [value]="{field:'pnl', order:'desc'}">P&L High-Low</ion-select-option>
-    <ion-select-option [value]="{field:'investment', order:'asc'}">Invest Low-High</ion-select-option>
-    <ion-select-option [value]="{field:'investment', order:'desc'}">Invest High-Low</ion-select-option>
-  </ion-select>
+      <!-- Sort -->
+      <ion-select #sortSelect interface="popover"
+        (ionChange)="setSort($event.detail.value.field, $event.detail.value.order)" placeholder="" okText="Select"
+        cancelText="Cancel" style="opacity:0; position:absolute; right:40px; top:0; bottom:0; width:40px;">
+        <ion-select-option [value]="{field:'name', order:'asc'}">Name A-Z</ion-select-option>
+        <ion-select-option [value]="{field:'name', order:'desc'}">Name Z-A</ion-select-option>
+        <ion-select-option [value]="{field:'pnl', order:'asc'}">P&L Low-High</ion-select-option>
+        <ion-select-option [value]="{field:'pnl', order:'desc'}">P&L High-Low</ion-select-option>
+        <ion-select-option [value]="{field:'investment', order:'asc'}">Invest Low-High</ion-select-option>
+        <ion-select-option [value]="{field:'investment', order:'desc'}">Invest High-Low</ion-select-option>
+      </ion-select>
 
-  <ion-icon name="swap-vertical-outline" style="font-size:24px; cursor:pointer; margin-right:8px;"
-            (click)="openSortPopover(sortSelect)">
-  </ion-icon>
+      <ion-icon name="swap-vertical-outline" style="font-size:24px; cursor:pointer; margin-right:8px;"
+        (click)="openSortPopover(sortSelect)">
+      </ion-icon>
 
-  <!-- Filter -->
-  <ion-select #filterSelect interface="popover" 
-              (ionChange)="onFilterChange($event.detail.value)" 
-              placeholder="" okText="Select" cancelText="Cancel" 
-              style="opacity:0; position:absolute; right:0; top:0; bottom:0; width:40px;">
-    <ion-select-option value="active">Active</ion-select-option>
-    <ion-select-option value="waiting">Waiting</ion-select-option>
-    <ion-select-option value="completed">Completed</ion-select-option>
-  </ion-select>
+      <!-- Filter -->
+      <ion-select #filterSelect interface="popover" (ionChange)="onFilterChange($event.detail.value)" placeholder=""
+        okText="Select" cancelText="Cancel" style="opacity:0; position:absolute; right:0; top:0; bottom:0; width:40px;">
+        <ion-select-option value="active">Active</ion-select-option>
+        <ion-select-option value="waiting">Waiting</ion-select-option>
+        <ion-select-option value="completed">Completed</ion-select-option>
+      </ion-select>
 
-  <ion-icon name="funnel-outline" style="font-size:24px; cursor:pointer;"
-            (click)="openFilterPopover(filterSelect)">
-  </ion-icon>
-</ion-buttons>
+      <ion-icon name="funnel-outline" style="font-size:24px; cursor:pointer;" (click)="openFilterPopover(filterSelect)">
+      </ion-icon>
+    </ion-buttons>
 
   </ion-toolbar>
 </ion-header>
@@ -67,9 +63,15 @@
         <div class="left">
           <p class="holding-name">{{ holding.name }}</p>
           <div class="field-row"><span class="title">Qty</span><span class="value">{{ holding.totalQty }}</span></div>
-          <div class="field-row"><span class="title">Invested</span><span class="value">₹{{ holding.totalInvested | roundOff }}</span></div>
+          <div class="field-row"><span class="title">Invested</span><span class="value">₹{{ holding.totalInvested |
+              roundOff }}</span></div>
         </div>
         <div class="right">
+          <div class="field-row">
+            <span class="rrr-badge" [ngClass]="(holding?.riskRewardValue ?? 0) > 0 ? 'positive' : 'negative'">
+              RRR {{ holding?.riskReward }}
+            </span>
+          </div>
           <div class="field-row">
             <span class="title">P&L</span>
             <span class="value" [ngClass]="getHoldingPnL(holding) >= 0 ? 'positive' : 'negative'">
@@ -79,8 +81,10 @@
               </span>
             </span>
           </div>
-          <div class="field-row"><span class="title">Avg</span><span class="value">₹{{ holding.avgPrice | roundOff }}</span></div>
-          <div class="field-row"><span class="title">SL/Exit</span><span class="value">₹{{ holding.stoploss }}</span></div>
+          <div class="field-row"><span class="title">Avg</span><span class="value">₹{{ holding.avgPrice | roundOff
+              }}</span></div>
+          <div class="field-row"><span class="title">SL/Exit</span><span class="value">₹{{ holding.stoploss }}</span>
+          </div>
         </div>
       </div>
     </div>

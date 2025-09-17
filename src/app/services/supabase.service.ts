@@ -71,7 +71,6 @@ async getHoldings(status: string = 'active'): Promise<Holding[]> {
 
   if (error) throw error;
 
-  // Group by symbol (name)
   const grouped = data.reduce((acc: Record<string, TradeEntry[]>, row: any) => {
     const trade: TradeEntry = {
       id: row.id,
@@ -79,11 +78,14 @@ async getHoldings(status: string = 'active'): Promise<Holding[]> {
       quantity: row.quantity,
       entryprice: row.entryprice,
       stoploss: row.stoploss,
+      initial_stoploss: row.initial_stoploss ?? row.stoploss,
       status: row.status,
       trade_date: row.trade_date,
       image: row.image,
       created_at: row.created_at,
-      is_primary: false
+      is_primary: false,
+      riskReward: '',
+      riskRewardValue: 0
     };
 
     if (!acc[row.name]) acc[row.name] = [];
@@ -91,38 +93,65 @@ async getHoldings(status: string = 'active'): Promise<Holding[]> {
     return acc;
   }, {});
 
-  // Convert grouped object into Holding[]
   const holdings: Holding[] = Object.entries(grouped).map(([name, trades]) => {
-    // Sort trades by trade_date ascending (oldest first → primary)
     trades.sort((a, b) => new Date(a.trade_date).getTime() - new Date(b.trade_date).getTime());
 
     const totalQty = trades.reduce((sum, t) => sum + t.quantity, 0);
     const totalInvested = trades.reduce((sum, t) => sum + t.entryprice * t.quantity, 0);
     const avgPrice = totalQty ? totalInvested / totalQty : 0;
 
-    // Oldest trade should be primary
     trades = trades.map((t, idx) => ({ ...t, is_primary: idx === 0 }));
-
     const primaryTrade = trades[0];
-     const stoploss = primaryTrade.stoploss;
+    const primarySL = primaryTrade.stoploss;
+    const initialSL = primaryTrade.initial_stoploss ?? primarySL;
 
-    // Update stoploss for all trades to primary's stoploss
-    const updatedTrades = trades.map(t => ({ ...t, stoploss }));
+    // Update all trades stoploss to primary SL and calculate RRR
+    const updatedTrades = trades.map(t => {
+      const initialRisk = t.entryprice - t.initial_stoploss;
+      const reward = t.stoploss - t.entryprice;
+
+      let ratioValue = initialRisk !== 0 ? Math.abs(reward / initialRisk) : 0;
+
+      // Show decimal only if not whole number
+      const ratioStr = initialRisk === 0 
+        ? 'N/A' 
+        : `1:${ratioValue % 1 === 0 ? ratioValue : ratioValue.toFixed(2)}`;
+
+      // Keep positive/negative sign for UI coloring
+      if (reward < 0) ratioValue = -ratioValue;
+
+      return { ...t, stoploss: primarySL, riskReward: ratioStr, riskRewardValue: ratioValue };
+    });
+
+    // Holding-level RRR
+    const initialRiskHolding = avgPrice - initialSL;
+    const rewardHolding = primarySL - avgPrice;
+
+    let holdingRRValue = initialRiskHolding !== 0 ? Math.abs(rewardHolding / initialRiskHolding) : 0;
+    const holdingRR = initialRiskHolding === 0
+      ? 'N/A'
+      : `1:${holdingRRValue % 1 === 0 ? holdingRRValue : holdingRRValue.toFixed(2)}`;
+
+    // Assign sign for UI coloring
+    if (rewardHolding < 0) holdingRRValue = -holdingRRValue;
 
     return {
-      id: primaryTrade.id, // oldest trade id as holding id
+      id: primaryTrade.id,
       name,
       totalQty,
       avgPrice,
       totalInvested,
-      stoploss: primaryTrade.stoploss,
+      stoploss: primarySL,
+      initial_stoploss: initialSL,
+      riskReward: holdingRR,
+      riskRewardValue: holdingRRValue,
       trades: updatedTrades,
     };
   });
 
-  console.log(holdings);
   return holdings;
 }
+
 
 
 

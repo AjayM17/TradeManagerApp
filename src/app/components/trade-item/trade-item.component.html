@@ -19,6 +19,11 @@
 
     <!-- RIGHT SIDE -->
     <div class="right">
+       <div class="field-row">
+            <span class="rrr-badge" [ngClass]="(trade?.riskRewardValue ?? 0) > 0 ? 'positive' : 'negative'">
+              RRR {{ trade?.riskReward }}
+            </span>
+          </div>
       <div class="field-row">
         <span
           class="value"

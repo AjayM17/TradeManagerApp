@@ -25,7 +25,8 @@
 
 .summary-row {
   display: flex;
-  justify-content: space-between; /* left and right ends */
+  justify-content: space-between;
+  /* left and right ends */
   align-items: center;
   padding: 4px 0;
 
@@ -68,7 +69,8 @@
 ion-content.content-adjust {
   font-size: 13px;
   font-weight: 500;
-  --padding-bottom: 50px; /* height of icon-toolbar + some space */
+  --padding-bottom: 50px;
+  /* height of icon-toolbar + some space */
 }
 
 /* ================= HOLDING CARD ================= */
@@ -88,7 +90,8 @@ ion-content.content-adjust {
     .right {
       display: flex;
       flex-direction: column;
-      gap: 4px; /* space between rows */
+      gap: 4px;
+      /* space between rows */
     }
 
     .holding-name {
@@ -103,9 +106,29 @@ ion-content.content-adjust {
     .field-row {
       display: flex;
       align-items: center;
-      gap: 8px; /* space between label and value */
+      gap: 8px;
+      /* space between label and value */
       font-size: 13px;
       font-weight: 500;
+
+      .rrr-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 10px;
+        color: #fff;
+        margin-left: auto;
+        /* push to right end */
+      }
+
+      .rrr-badge.positive {
+        background-color: #4caf50; // green badge
+      }
+
+      .rrr-badge.negative {
+        background-color: #f44336; // red badge
+      }
 
       .title {
         color: #888888;

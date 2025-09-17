@@ -1,8 +1,6 @@
 import { Component, Input, OnInit } from '@angular/core';
 import {
   IonInput,
-  IonLabel,
-  IonItem,
   IonButton,
   IonContent,
   IonHeader,
@@ -11,16 +9,12 @@ import {
   IonButtons,
   IonSelect,
   IonSelectOption,
-  IonIcon,
-  IonFooter,
+  IonToggle,
   LoadingController,
-  ModalController,
-  IonText,
-  IonNote
+  ModalController
 } from '@ionic/angular/standalone';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 import { SupabaseService } from 'src/app/services/supabase.service';
 import { UiHelperService } from 'src/app/services/ui-helper.service';
 
@@ -32,8 +26,6 @@ import { UiHelperService } from 'src/app/services/ui-helper.service';
     FormsModule,
     ReactiveFormsModule,
     IonInput,
-    IonLabel,
-    IonItem,
     IonButton,
     IonContent,
     IonHeader,
@@ -42,10 +34,7 @@ import { UiHelperService } from 'src/app/services/ui-helper.service';
     IonButtons,
     IonSelect,
     IonSelectOption,
-    IonIcon,
-    IonFooter,
-    IonText,
-    IonNote
+    IonToggle
   ],
   templateUrl: './add-holding.component.html',
   styleUrls: ['./add-holding.component.scss']
@@ -76,49 +65,71 @@ export class AddHoldingComponent implements OnInit {
     private uiHelper: UiHelperService
   ) {
     this.holdingForm = this.fb.group({
-      name: new FormControl({ value: '', disabled: false }, Validators.required),
+      name: new FormControl('', Validators.required),
       status: [this.selectedStatus, Validators.required],
       trade_date: [null],
       entryprice: [null, Validators.required],
-      stoploss: new FormControl({ value: null, disabled: false }, Validators.required),
+      stoploss: [null, Validators.required],
       quantity: [null, Validators.required],
+      initial_stoploss: [null],
+      enableInitialSL: [true]
     });
   }
 
   async ngOnInit() {
-    // 🔹 Load Settings first
     await this.loadSettings();
-    console.log(this.selectedStatus)
-     this.holdingForm.get('status')?.setValue(this.selectedStatus || 'active');
+
+    this.holdingForm.get('status')?.setValue(this.selectedStatus || 'active');
+
     if (this.trade) {
-      this.modalHeader = 'Edit Trade';
-      this.patchForm(this.trade);
+      this.setupEditCase();
     } else if (this.holding) {
-      this.modalHeader = 'Add Trade';
-      this.patchForm(this.holding);
+      this.setupAddMoreCase();
+    } else {
+      this.setupNewCase();
     }
 
-    const isNonEditable = this.isAdditionalTrade || (this.trade && !this.trade.is_primary);
-  if (isNonEditable) {
-    this.holdingForm.get('name')?.disable();
-    this.holdingForm.get('stoploss')?.disable();
+    this.applyNonEditableRules();
   }
+
+  /** ----------------- CASE HANDLERS ----------------- **/
+
+  private setupEditCase() {
+    this.modalHeader = 'Edit Trade';
+    this.patchForm(this.trade);
+
+    // disable initial SL
+    this.holdingForm.get('enableInitialSL')?.setValue(false);
+    this.holdingForm.get('initial_stoploss')?.disable();
   }
+
+  private setupAddMoreCase() {
+    this.modalHeader = 'Add More';
+    this.patchForm(this.holding);
+
+    this.setInitialSLFromStoploss();
+    this.syncStoplossToInitial();
+  }
+
+  private setupNewCase() {
+    this.modalHeader = 'Add Trade';
+    this.holdingForm.reset({
+      status: this.selectedStatus || 'active',
+      enableInitialSL: true
+    });
+
+    this.syncStoplossToInitial();
+  }
+
+  /** ----------------- HELPERS ----------------- **/
 
   private async loadSettings() {
     try {
       const setting = await this.supabaseService.getSetting();
-      if (setting) {
-        this.maxInvestment = setting.max_trade_amount || 50000;
-        this.maxRiskValue = setting.max_stop_loss_amount || 3000;
-      } else {
-        // fallback defaults
-        this.maxInvestment = 50000;
-        this.maxRiskValue = 3000;
-      }
+      this.maxInvestment = setting?.max_trade_amount || 50000;
+      this.maxRiskValue = setting?.max_stop_loss_amount || 3000;
     } catch (err) {
       console.error('Failed to load settings:', err);
-      // fallback
       this.maxInvestment = 50000;
       this.maxRiskValue = 3000;
     }
@@ -131,10 +142,35 @@ export class AddHoldingComponent implements OnInit {
       entryprice: data.entryprice || null,
       stoploss: data.stoploss || null,
       quantity: data.quantity || null,
+      initial_stoploss: data.initial_stoploss ?? data.stoploss ?? null,
     }, { emitEvent: false });
 
     this.updateInvestmentAndRisk();
   }
+
+  private setInitialSLFromStoploss() {
+    const sl = this.holdingForm.get('stoploss')?.value;
+    this.holdingForm.get('initial_stoploss')?.setValue(sl);
+    this.holdingForm.get('enableInitialSL')?.setValue(true);
+  }
+
+  private syncStoplossToInitial() {
+    this.holdingForm.get('stoploss')?.valueChanges.subscribe(val => {
+      if (this.holdingForm.get('enableInitialSL')?.value) {
+        this.holdingForm.get('initial_stoploss')?.setValue(val, { emitEvent: false });
+      }
+    });
+  }
+
+  private applyNonEditableRules() {
+    const isNonEditable = this.isAdditionalTrade || (this.trade && !this.trade.is_primary);
+    if (isNonEditable) {
+      this.holdingForm.get('name')?.disable();
+      this.holdingForm.get('stoploss')?.disable();
+    }
+  }
+
+  /** ----------------- FILE & CALC ----------------- **/
 
   onFileChange(event: any) {
     const file = event.target.files?.[0];
@@ -147,66 +183,91 @@ export class AddHoldingComponent implements OnInit {
     const quantity = +(this.holdingForm.get('quantity')?.value || 0);
 
     this.investment = entryPrice * quantity;
-
-    // risk value absolute
     this.riskValue = (stoploss - entryPrice) * (quantity || 1);
-
-    // percentage risk (price only)
     this.riskPer = entryPrice > 0 ? ((stoploss - entryPrice) / entryPrice) * 100 : 0;
   }
 
+  /** ----------------- SAVE ----------------- **/
+
   async save() {
-    if (!this.holdingForm.valid) return;
+  if (!this.holdingForm.valid) return;
 
-    const formData = this.holdingForm.getRawValue();
+  const formData = this.holdingForm.getRawValue();
 
+  const enableInitialSL = this.holdingForm.get('enableInitialSL')?.value;
 
-    if (this.trade?.id) formData.id = this.trade.id;
+  // 🔹 remove frontend-only toggle
+  delete formData.enableInitialSL;
 
-    if (!formData.trade_date) {
-      formData.trade_date = null;
-    }
-
-    const loading = await this.loadingCtrl.create({ message: 'Saving holding...', spinner: 'crescent' });
-    await loading.present();
-
-    try {
-      if (this.selectedFile) {
-        const imageUrl = await this.supabaseService.uploadImage(this.selectedFile);
-        formData.image = imageUrl;
-      }
-
-      // Remove frontend-only holdingId before sending to Supabase
-      delete formData.holdingId;
-
-      if (this.trade?.id) {
-        await this.supabaseService.updateHolding(formData);
-      } else {
-        await this.supabaseService.insertHolding(formData);
-      }
-
-      await loading.dismiss();
-      this.dismiss(true);
-    } catch (error) {
-      console.error(error);
-      await loading.dismiss();
-    }
+  // 🔹 skip saving initial_stoploss if toggle is OFF
+  if (!enableInitialSL) {
+    delete formData.initial_stoploss;
   }
+
+  if (this.trade?.id) {
+    formData.id = this.trade.id;
+  }
+
+  if (!formData.trade_date) {
+    formData.trade_date = null;
+  }
+
+  const loading = await this.loadingCtrl.create({
+    message: 'Saving holding...',
+    spinner: 'crescent'
+  });
+  await loading.present();
+
+  try {
+    if (this.selectedFile) {
+      const imageUrl = await this.supabaseService.uploadImage(this.selectedFile);
+      formData.image = imageUrl;
+    }
+
+    delete formData.holdingId; // frontend-only
+
+    if (this.trade?.id) {
+      await this.supabaseService.updateHolding(formData);
+    } else {
+      await this.supabaseService.insertHolding(formData);
+    }
+
+    await loading.dismiss();
+    this.dismiss(true);
+  } catch (error) {
+    console.error(error);
+    await loading.dismiss();
+  }
+}
+
 
   dismiss(success: boolean = false) {
     this.modalCtrl.dismiss({ success });
   }
 
-canSave(): boolean {
-  return this.holdingForm.valid &&
-    this.investment <= this.maxInvestment &&
-    (
-      this.riskValue >= 0 || // profit → always allowed
-      Math.abs(this.riskValue) <= this.maxRiskValue // loss → check limit
-    );
-}
+  /** ----------------- VALIDATION ----------------- **/
+
+  canSave(): boolean {
+    return this.holdingForm.valid &&
+      this.investment <= this.maxInvestment &&
+      (
+        this.riskValue >= 0 || // profit → always allowed
+        Math.abs(this.riskValue) <= this.maxRiskValue // loss → check limit
+      );
+  }
 
   get riskValueAbs(): number {
     return Math.abs(this.riskValue || 0);
+  }
+
+  /** ----------------- TOGGLE ----------------- **/
+
+  onToggleInitialSL(event: any) {
+    if (event.detail.checked) {
+      this.holdingForm.get('initial_stoploss')?.enable();
+      this.setInitialSLFromStoploss();
+    } else {
+      this.holdingForm.get('initial_stoploss')?.disable();
+    }
   }
 }
