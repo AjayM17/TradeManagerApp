@@ -85,7 +85,7 @@ async getHoldings(status: string = 'active'): Promise<Holding[]> {
       created_at: row.created_at,
       is_primary: false,
       riskReward: '',
-      riskRewardValue: 0
+      riskRewardValue: 0,
     };
 
     if (!acc[row.name]) acc[row.name] = [];
@@ -105,35 +105,28 @@ async getHoldings(status: string = 'active'): Promise<Holding[]> {
     const primarySL = primaryTrade.stoploss;
     const initialSL = primaryTrade.initial_stoploss ?? primarySL;
 
-    // Update all trades stoploss to primary SL and calculate RRR
+    // --- Trade-level RRR with coloring ---
     const updatedTrades = trades.map(t => {
       const initialRisk = t.entryprice - t.initial_stoploss;
       const reward = t.stoploss - t.entryprice;
 
-      let ratioValue = initialRisk !== 0 ? Math.abs(reward / initialRisk) : 0;
-
-      // Show decimal only if not whole number
-      const ratioStr = initialRisk === 0 
-        ? 'N/A' 
+      const ratioValue = initialRisk !== 0 ? reward / initialRisk : 0;
+      const ratioStr = initialRisk === 0
+        ? 'N/A'
         : `1:${ratioValue % 1 === 0 ? ratioValue : ratioValue.toFixed(2)}`;
 
-      // Keep positive/negative sign for UI coloring
-      if (reward < 0) ratioValue = -ratioValue;
+      
 
       return { ...t, stoploss: primarySL, riskReward: ratioStr, riskRewardValue: ratioValue };
     });
 
-    // Holding-level RRR
+    // --- Holding-level RRR with coloring ---
     const initialRiskHolding = avgPrice - initialSL;
     const rewardHolding = primarySL - avgPrice;
-
-    let holdingRRValue = initialRiskHolding !== 0 ? Math.abs(rewardHolding / initialRiskHolding) : 0;
+    const holdingRRValue = initialRiskHolding !== 0 ? rewardHolding / initialRiskHolding : 0;
     const holdingRR = initialRiskHolding === 0
       ? 'N/A'
       : `1:${holdingRRValue % 1 === 0 ? holdingRRValue : holdingRRValue.toFixed(2)}`;
-
-    // Assign sign for UI coloring
-    if (rewardHolding < 0) holdingRRValue = -holdingRRValue;
 
     return {
       id: primaryTrade.id,
@@ -151,6 +144,7 @@ async getHoldings(status: string = 'active'): Promise<Holding[]> {
 
   return holdings;
 }
+
 
 
 

@@ -1,6 +1,4 @@
 <div class="trade-card">
-  <!-- Initial badge -->
-  <div *ngIf="trade.is_primary" class="initial-badge">Primary</div>
 
   <div class="container">
     <!-- LEFT SIDE -->
@@ -8,6 +6,7 @@
       <div class="field-row">
         <span class="title">Qty:</span>
         <span class="value">{{ trade.quantity }}</span>
+        <span *ngIf="trade.is_primary" class="primary-circle"></span>
       </div>
       <div class="field-row">
         <span class="title">Invested:</span>
