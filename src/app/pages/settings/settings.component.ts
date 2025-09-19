@@ -28,11 +28,19 @@ export class SettingComponent implements OnInit {
     });
 
     this.loadSetting();
+
+    // Subscribe to updates if settings change elsewhere
+    this.supabase.settings$.subscribe(setting => {
+      if (setting) {
+        this.form.patchValue(setting);
+      }
+    });
   }
 
   private async loadSetting(): Promise<void> {
     try {
-      const setting = await this.supabase.getSetting();
+      await this.supabase.loadSettings(); // load once
+      const setting = this.supabase.currentSettings;
       if (setting) {
         this.form.patchValue(setting);
       }
@@ -52,8 +60,11 @@ export class SettingComponent implements OnInit {
     await loading.present();
 
     try {
-      await this.supabase.saveSetting({ id: 1, ...this.form.value });
+      const updatedSetting = await this.supabase.updateSetting(this.form.value);
       this.showToast('Settings saved successfully', 'success');
+
+      // form updated automatically via BehaviorSubject subscription
+      this.form.patchValue(updatedSetting);
     } catch (err) {
       console.error('Error saving setting:', err);
       this.showToast('Error saving settings', 'danger');

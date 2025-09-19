@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, inject, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, ViewChild, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonContent,
@@ -15,7 +15,7 @@ import {
   ActionSheetController,
   IonButton,
   IonSelect,
-  IonSelectOption
+  IonSelectOption,
 } from '@ionic/angular/standalone';
 import { SupabaseService } from '../../services/supabase.service';
 import { TradeItemComponent } from '../../components/trade-item/trade-item.component';
@@ -23,6 +23,8 @@ import { RoundOffPipe } from 'src/app/pipes/round-off.pipe';
 import { AddHoldingComponent } from '../add-holding/add-holding.component';
 import { TradeEntry, Holding } from 'src/app/utils/holdings.helper';
 import { UiHelperService } from 'src/app/services/ui-helper.service';
+import { HoldingService } from 'src/app/services/holding.service';
+import { Subscription } from 'rxjs';
 
 type SortField = 'name' | 'pnl' | 'investment';
 type SortOrder = 'asc' | 'desc';
@@ -50,7 +52,7 @@ type SortOrder = 'asc' | 'desc';
     IonSelectOption
   ]
 })
-export class HoldingComponent {
+export class HoldingComponent implements OnDestroy {
   @ViewChild('sortSelect') sortSelect!: IonSelect;
 
   private modalCtrl = inject(ModalController);
@@ -59,6 +61,7 @@ export class HoldingComponent {
   private actionSheetCtrl = inject(ActionSheetController);
   private uiHelper = inject(UiHelperService);
   private cdr = inject(ChangeDetectorRef);
+  private holdingService = inject(HoldingService);
 
   holdings: Holding[] = [];
   sortedHoldings: Holding[] = [];
@@ -69,9 +72,33 @@ export class HoldingComponent {
 
   sortField: SortField = 'name';
   sortOrder: SortOrder = 'asc';
+  totalCount: number = 0;
+  profitCount: number = 0;
+  lossCount: number = 0;
+
+  settings: any;
+  private settingsSub!: Subscription;
 
   async ngOnInit() {
+    // Load settings if not already
+    if (!this.supabase.currentSettings) {
+      await this.supabase.loadSettings();
+    }
+
+    // Subscribe to settings changes
+    this.settingsSub = this.supabase.settings$.subscribe(s => {
+      console.log(s)
+      this.settings = s;
+      this.cdr.detectChanges(); // update UI when settings change
+    });
+
     await this.refreshHoldings();
+  }
+
+  ngOnDestroy() {
+    if (this.settingsSub) {
+      this.settingsSub.unsubscribe();
+    }
   }
 
   async refreshHoldings() {
@@ -90,11 +117,12 @@ export class HoldingComponent {
 
     this.calculateSummary();
     this.applySorting();
+    this.holdingService.setCount(this.sortedHoldings.length);
     this.cdr.detectChanges();
-    console.log(this.sortedHoldings)
   }
 
   calculateSummary() {
+    if (!this.holdings) return;
     let investment = 0;
     let currentValue = 0;
     for (const h of this.holdings) {
@@ -103,16 +131,20 @@ export class HoldingComponent {
     }
     this.investment = investment;
     this.pnl_val = currentValue - investment;
+
+    this.totalCount = this.holdings.length;
+    this.profitCount = this.holdings.filter(h => h.stoploss > h.avgPrice).length;
+    this.lossCount = this.holdings.filter(h => h.stoploss < h.avgPrice).length;
   }
 
   openFilterPopover(select: IonSelect) {
-  select.open();
-}
+    select.open();
+  }
 
-onFilterChange(value: 'active' | 'waiting' | 'completed') {
-  this.selectedStatus = value;
-  this.refreshHoldings();
-}
+  onFilterChange(value: 'active' | 'waiting' | 'completed') {
+    this.selectedStatus = value;
+    this.refreshHoldings();
+  }
 
   applySorting() {
     this.sortedHoldings = [...this.holdings].sort((a, b) => {
@@ -161,16 +193,45 @@ onFilterChange(value: 'active' | 'waiting' | 'completed') {
   }
 
   async openAddHoldingModal() {
-    const modal = await this.modalCtrl.create({ component: AddHoldingComponent,componentProps: { selectedStatus: this.selectedStatus } });
-    modal.onDidDismiss().then(result => { if (result?.data?.success) this.refreshHoldings(); });
+    if (!this.settings) {
+      await this.uiHelper.showToast('Settings not loaded yet.', 2000, 'top', 'warning');
+      return;
+    }
+
+    const maxHolding = this.settings.max_holding_limit || 15;
+    const minProfitPercent = 0.6;
+    const minProfitHoldings = Math.max(6, Math.ceil(this.totalCount * minProfitPercent));
+
+    const canOpen =
+      this.totalCount < maxHolding ||
+      (this.totalCount > 0 && this.profitCount / this.totalCount >= minProfitPercent);
+
+    if (!canOpen) {
+      await this.uiHelper.showToast(
+        `Cannot add holding. Max holding limit (${maxHolding}) reached or minimum profit holdings required: ${minProfitHoldings}`,
+        2000, 'top', 'warning'
+      );
+      return;
+    }
+
+    const modal = await this.modalCtrl.create({
+      component: AddHoldingComponent,
+      componentProps: { selectedStatus: this.selectedStatus }
+    });
+
+    modal.onDidDismiss().then(result => {
+      if (result?.data?.success) this.refreshHoldings();
+    });
+
     await modal.present();
   }
 
   async openTradeActions(trade: TradeEntry, holding: Holding) {
+    const inProfit = holding.avgPrice < holding.stoploss;
     const actionSheet = await this.actionSheetCtrl.create({
       header: `${holding.name} - Trade`,
       buttons: [
-        { text: 'Add More', icon: 'add-circle-outline', handler: () => this.openAddTradeModal(holding) },
+        { text: 'Add More', icon: 'add-circle-outline', handler: () => this.openAddTradeModal(holding), disabled: !inProfit },
         { text: 'Edit', icon: 'create-outline', handler: () => this.openEditTradeModal(holding, trade) },
         { text: 'Delete', role: 'destructive', icon: 'trash-outline', handler: () => this.deleteTrade(trade) },
         { text: 'Cancel', role: 'cancel', icon: 'close' }
@@ -180,13 +241,13 @@ onFilterChange(value: 'active' | 'waiting' | 'completed') {
   }
 
   async openAddTradeModal(holding: Holding) {
-    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding, isAdditionalTrade: true,  selectedStatus: this.selectedStatus } });
+    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding, isAdditionalTrade: true, selectedStatus: this.selectedStatus } });
     modal.onDidDismiss().then(result => { if (result?.data?.success) this.refreshHoldings(); });
     await modal.present();
   }
 
   async openEditTradeModal(holding: Holding, trade: TradeEntry) {
-    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding, trade , selectedStatus: this.selectedStatus} });
+    const modal = await this.modalCtrl.create({ component: AddHoldingComponent, componentProps: { holding, trade, selectedStatus: this.selectedStatus } });
     modal.onDidDismiss().then(result => { if (result?.data?.success) this.refreshHoldings(); });
     await modal.present();
   }

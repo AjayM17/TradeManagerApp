@@ -3,6 +3,7 @@
     <ion-tab-button tab="holding">
       <ion-icon name="briefcase-outline"></ion-icon>
       <ion-label>Holding</ion-label>
+        <ion-badge *ngIf="(holdingCount$ | async) as count">{{ count }}</ion-badge>
     </ion-tab-button>
 
     <ion-tab-button tab="dashboard">

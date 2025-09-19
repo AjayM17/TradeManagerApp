@@ -25,8 +25,7 @@
 
 .summary-row {
   display: flex;
-  justify-content: space-between;
-  /* left and right ends */
+  justify-content: space-between; /* left and right ends */
   align-items: center;
   padding: 4px 0;
 
@@ -45,7 +44,7 @@
   }
 }
 
-/* Bottom icon toolbar */
+/* Bottom icon toolbar (still used separately above summary row) */
 .icon-toolbar {
   display: flex;
   justify-content: flex-end;
@@ -64,6 +63,53 @@
 .icon-toolbar ion-icon {
   font-size: 20px;
 }
+
+/* ================= STATUS ROW ================= */
+.status-row {
+  display: flex;
+  justify-content: space-between; /* left side vs right side */
+  align-items: center;
+  padding: 6px 0;
+
+  /* Left side (Profit / Loss) */
+  .status-left {
+    display: flex;
+    align-items: center;
+
+    .summary-item {
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      font-weight: 500;
+      margin-right: 12px;
+
+      ion-icon {
+        margin-right: 6px;
+        font-size: 18px;
+      }
+
+      &.profit {
+        color: #28ba62; // green
+      }
+      &.loss {
+        color: #eb445a; // red
+      }
+    }
+  }
+
+  /* Right side (Filter & Sort icons) */
+  .status-actions {
+    display: flex;
+    align-items: center;
+
+    ion-icon {
+      font-size: 22px;
+      cursor: pointer;
+      margin-left: 12px;
+    }
+  }
+}
+
 
 /* ================= ION CONTENT ================= */
 ion-content.content-adjust {

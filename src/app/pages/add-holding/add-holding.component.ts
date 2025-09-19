@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy } from '@angular/core';
 import {
   IonInput,
   IonButton,
@@ -17,6 +17,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 import { SupabaseService } from 'src/app/services/supabase.service';
 import { UiHelperService } from 'src/app/services/ui-helper.service';
+import { Subscription, firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-add-holding',
@@ -39,7 +40,7 @@ import { UiHelperService } from 'src/app/services/ui-helper.service';
   templateUrl: './add-holding.component.html',
   styleUrls: ['./add-holding.component.scss']
 })
-export class AddHoldingComponent implements OnInit {
+export class AddHoldingComponent implements OnInit, OnDestroy {
   @Input() holding: any;
   @Input() trade: any;
   @Input() isAdditionalTrade: boolean = false;
@@ -52,10 +53,11 @@ export class AddHoldingComponent implements OnInit {
   riskPer = 0;
   riskValue = 0;
 
-  maxInvestment = 0;
-  maxRiskValue = 0;
+  maxInvestment = 50000;
+  maxRiskValue = 3000;
 
   modalHeader = 'Add Holding';
+  private settingsSub!: Subscription;
 
   constructor(
     private fb: FormBuilder,
@@ -77,7 +79,19 @@ export class AddHoldingComponent implements OnInit {
   }
 
   async ngOnInit() {
-    await this.loadSettings();
+    console.log(this.holding)
+    // Subscribe to latest settings
+    this.settingsSub = this.supabaseService.settings$.subscribe(s => {
+      if (s) {
+        this.maxInvestment = s.max_trade_amount || 50000;
+        this.maxRiskValue = s.max_stop_loss_amount || 3000;
+      }
+    });
+
+    // Ensure settings loaded at least once
+    if (!this.supabaseService.currentSettings) {
+      await this.supabaseService.loadSettings();
+    }
 
     this.holdingForm.get('status')?.setValue(this.selectedStatus || 'active');
 
@@ -92,13 +106,17 @@ export class AddHoldingComponent implements OnInit {
     this.applyNonEditableRules();
   }
 
+  ngOnDestroy() {
+    if (this.settingsSub) {
+      this.settingsSub.unsubscribe();
+    }
+  }
+
   /** ----------------- CASE HANDLERS ----------------- **/
 
   private setupEditCase() {
     this.modalHeader = 'Edit Trade';
     this.patchForm(this.trade);
-
-    // disable initial SL
     this.holdingForm.get('enableInitialSL')?.setValue(false);
     this.holdingForm.get('initial_stoploss')?.disable();
   }
@@ -106,7 +124,6 @@ export class AddHoldingComponent implements OnInit {
   private setupAddMoreCase() {
     this.modalHeader = 'Add More';
     this.patchForm(this.holding);
-
     this.setInitialSLFromStoploss();
     this.syncStoplossToInitial();
   }
@@ -117,23 +134,10 @@ export class AddHoldingComponent implements OnInit {
       status: this.selectedStatus || 'active',
       enableInitialSL: true
     });
-
     this.syncStoplossToInitial();
   }
 
   /** ----------------- HELPERS ----------------- **/
-
-  private async loadSettings() {
-    try {
-      const setting = await this.supabaseService.getSetting();
-      this.maxInvestment = setting?.max_trade_amount || 50000;
-      this.maxRiskValue = setting?.max_stop_loss_amount || 3000;
-    } catch (err) {
-      console.error('Failed to load settings:', err);
-      this.maxInvestment = 50000;
-      this.maxRiskValue = 3000;
-    }
-  }
 
   private patchForm(data: any) {
     this.holdingForm.patchValue({
@@ -190,77 +194,58 @@ export class AddHoldingComponent implements OnInit {
   /** ----------------- SAVE ----------------- **/
 
   async save() {
-  if (!this.holdingForm.valid) return;
+    if (!this.holdingForm.valid) return;
 
-  const formData = this.holdingForm.getRawValue();
+    const formData = this.holdingForm.getRawValue();
+    const enableInitialSL = formData.enableInitialSL;
+    delete formData.enableInitialSL;
 
-  const enableInitialSL = this.holdingForm.get('enableInitialSL')?.value;
+    if (!enableInitialSL) delete formData.initial_stoploss;
+    if (this.trade?.id) formData.id = this.trade.id;
+    if (!formData.trade_date) formData.trade_date = null;
 
-  // 🔹 remove frontend-only toggle
-  delete formData.enableInitialSL;
+    const loading = await this.loadingCtrl.create({
+      message: 'Saving holding...',
+      spinner: 'crescent'
+    });
+    await loading.present();
 
-  // 🔹 skip saving initial_stoploss if toggle is OFF
-  if (!enableInitialSL) {
-    delete formData.initial_stoploss;
-  }
+    try {
+      if (this.selectedFile) {
+        const imageUrl = await this.supabaseService.uploadImage(this.selectedFile);
+        formData.image = imageUrl;
+      }
+console.log(formData)
+      if (this.trade?.id) {
+        await this.supabaseService.updateHolding(formData);
+      } else {
+        await this.supabaseService.insertHolding(formData);
+      }
 
-  if (this.trade?.id) {
-    formData.id = this.trade.id;
-  }
-
-  if (!formData.trade_date) {
-    formData.trade_date = null;
-  }
-
-  const loading = await this.loadingCtrl.create({
-    message: 'Saving holding...',
-    spinner: 'crescent'
-  });
-  await loading.present();
-
-  try {
-    if (this.selectedFile) {
-      const imageUrl = await this.supabaseService.uploadImage(this.selectedFile);
-      formData.image = imageUrl;
+      await loading.dismiss();
+      this.dismiss(true);
+    } catch (error) {
+      console.error(error);
+      await loading.dismiss();
     }
-
-    delete formData.holdingId; // frontend-only
-
-    if (this.trade?.id) {
-      await this.supabaseService.updateHolding(formData);
-    } else {
-      await this.supabaseService.insertHolding(formData);
-    }
-
-    await loading.dismiss();
-    this.dismiss(true);
-  } catch (error) {
-    console.error(error);
-    await loading.dismiss();
   }
-}
-
 
   dismiss(success: boolean = false) {
     this.modalCtrl.dismiss({ success });
   }
 
-  /** ----------------- VALIDATION ----------------- **/
-
   canSave(): boolean {
     return this.holdingForm.valid &&
       this.investment <= this.maxInvestment &&
       (
-        this.riskValue >= 0 || // profit → always allowed
-        Math.abs(this.riskValue) <= this.maxRiskValue // loss → check limit
+        this.riskValue >= 0 ||
+        Math.abs(this.riskValue) <= this.maxRiskValue
       );
   }
 
   get riskValueAbs(): number {
     return Math.abs(this.riskValue || 0);
   }
-
-  /** ----------------- TOGGLE ----------------- **/
 
   onToggleInitialSL(event: any) {
     if (event.detail.checked) {

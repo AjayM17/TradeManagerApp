@@ -6,9 +6,11 @@ import {
   IonIcon,
   IonLabel,
   IonRouterOutlet,
+  IonBadge
 } from '@ionic/angular/standalone';
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { HoldingService } from '../services/holding.service';
 
 @Component({
   standalone: true,
@@ -22,7 +24,12 @@ import { CommonModule } from '@angular/common';
     IonTabBar,
     IonTabButton,
     IonIcon,
-    IonLabel
+    IonLabel,
+    IonBadge
   ],
 })
-export class TabsComponent {}
+export class TabsComponent {
+  holdingCount$ = this.holdingService.holdingCount$;
+
+  constructor(private holdingService: HoldingService) { }
+}
